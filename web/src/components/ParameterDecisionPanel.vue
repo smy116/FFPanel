@@ -9,6 +9,10 @@ const hasFallback = computed(() =>
     (reason) => reason.code === "transcode_auto_fallback",
   ),
 );
+function hasField(record: Record<string, unknown> | null, key: string): boolean {
+  return record != null && Object.prototype.hasOwnProperty.call(record, key);
+}
+
 const keys = computed(() => {
   const values = new Set([
     ...Object.keys(props.decision.source || {}),
@@ -17,6 +21,12 @@ const keys = computed(() => {
   ]);
   return [...values].filter(
     (key) =>
+      (key === "rateControl" &&
+        [
+          props.decision.source,
+          props.decision.requested,
+          props.decision.effective,
+        ].some((record) => hasField(record, key))) ||
       !changedOnly.value ||
       JSON.stringify(props.decision.requested?.[key]) !==
         JSON.stringify(props.decision.effective?.[key]),

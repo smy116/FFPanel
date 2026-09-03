@@ -232,9 +232,10 @@ button, a { -webkit-tap-highlight-color: transparent; }
 .argv { padding: 9px 12px; border-top: 1px solid #e2e8f0; font-size: 11px; }.argv-heading { display: block; }.argv code { display: block; overflow: auto; margin-top: 7px; padding: 8px; color: #cbd5e1; border-radius: 6px; background: #0f172a; white-space: nowrap; }
 .log-panel { margin-top: 10px; border: 1px solid #e2e8f0; border-radius: 9px; background: white; }.log-panel summary { padding: 10px 12px; color: #475569; font-size: 11px; font-weight: 700; cursor: pointer; }.log-panel > div { max-height: 220px; overflow: auto; padding: 7px 12px; color: #cbd5e1; background: #0f172a; }.log-panel p { display: flex; gap: 9px; margin: 3px 0; font: 10px/1.5 ui-monospace, monospace; }.log-panel time { color: #64748b; flex: none; }.log-panel .warning { color: #fde68a; }.log-panel .error { color: #fca5a5; }
 .file-detail-dialog { width: min(940px, calc(100vw - 32px)); max-height: min(720px, calc(100vh - 32px)); display: flex; flex-direction: column; overflow: hidden; }
-.file-detail-path { overflow: hidden; margin: 5px 42px 16px 0; color: #64748b; font-size: 13px; text-overflow: ellipsis; white-space: nowrap; }
+.file-detail-path { overflow: hidden; min-width: 0; margin: 0; color: #64748b; font-size: 13px; line-height: 1.5; text-overflow: ellipsis; white-space: nowrap; }
 .file-detail-meta { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 14px; }
 .file-detail-meta > div { min-width: 0; display: flex; flex-direction: column; gap: 5px; padding: 10px 12px; border: 1px solid #e2e8f0; border-radius: 8px; background: #f8fafc; }
+.file-detail-meta > .file-detail-path { display: block; grid-column: 1 / -1; padding: 10px 12px; border: 1px solid #e2e8f0; border-radius: 8px; background: #f8fafc; }
 .file-detail-meta small { color: #64748b; font-size: 11px; }.file-detail-meta b { overflow: hidden; display: flex; align-items: center; gap: 6px; font-size: 13px; text-overflow: ellipsis; white-space: nowrap; }
 .file-detail-scroll { min-height: 0; overflow-y: auto; overflow-x: hidden; padding-right: 4px; }
 .file-detail-error { margin: 0 0 12px; padding: 10px 12px; border-radius: 8px; color: #b91c1c; background: #fef2f2; font-size: 12px; }

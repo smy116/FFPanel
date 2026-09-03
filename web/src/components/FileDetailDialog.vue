@@ -2,7 +2,6 @@
 import { computed } from "vue";
 import {
   DialogContent,
-  DialogDescription,
   DialogOverlay,
   DialogPortal,
   DialogRoot,
@@ -45,43 +44,44 @@ function close() {
   <DialogRoot :open="open" @update:open="emit('update:open', $event)">
     <DialogPortal>
       <DialogOverlay class="dialog-overlay" />
-      <DialogContent class="dialog-content file-detail-dialog">
+      <DialogContent
+        class="dialog-content file-detail-dialog"
+        aria-describedby=""
+      >
         <div class="dialog-heading">
           <DialogTitle class="dialog-title">文件详情</DialogTitle>
           <button class="icon-button" aria-label="关闭文件详情" @click="close">
             <X :size="18" />
           </button>
         </div>
-        <DialogDescription
-          class="file-detail-path"
-          :title="file?.relativePath"
-          >{{ file?.relativePath }}</DialogDescription
-        >
-        <div v-if="file" class="file-detail-meta">
-          <div>
-            <small>类型</small
-            ><b>{{ file.kind === "video" ? "视频" : "伴随文件" }}</b>
-          </div>
-          <div>
-            <small>状态</small
-            ><b
-              ><i :class="`stage-dot ${file.stage}`"></i
-              >{{ stageLabel[file.stage] }}</b
-            >
-          </div>
-          <div>
-            <small>尝试</small><b>#{{ file.attempt }}</b>
-          </div>
-          <div>
-            <small>大小</small
-            ><b>{{
-              file.sourceSize == null
-                ? "—"
-                : `${file.sourceSize.toLocaleString()} B`
-            }}</b>
-          </div>
-        </div>
         <div class="file-detail-scroll">
+          <div v-if="file" class="file-detail-meta">
+            <div class="file-detail-path" :title="file.relativePath">
+              {{ file.relativePath }}
+            </div>
+            <div>
+              <small>类型</small
+              ><b>{{ file.kind === "video" ? "视频" : "伴随文件" }}</b>
+            </div>
+            <div>
+              <small>状态</small
+              ><b
+                ><i :class="`stage-dot ${file.stage}`"></i
+                >{{ stageLabel[file.stage] }}</b
+              >
+            </div>
+            <div>
+              <small>尝试</small><b>#{{ file.attempt }}</b>
+            </div>
+            <div>
+              <small>大小</small
+              ><b>{{
+                file.sourceSize == null
+                  ? "—"
+                  : `${file.sourceSize.toLocaleString()} B`
+              }}</b>
+            </div>
+          </div>
           <p v-if="file?.lastError" class="file-detail-error">
             {{ file.lastError }}
           </p>
