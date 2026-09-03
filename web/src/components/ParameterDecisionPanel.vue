@@ -26,7 +26,7 @@ function value(record: Record<string, unknown> | null, key: string): string {
       <p v-if="!keys.length" class="muted-copy">没有自动调整的参数。</p>
     </div>
     <div v-if="decision.reasons.length" class="reason-list"><span v-for="(reason, index) in decision.reasons" :key="reason.code + reason.field + index">{{ reason.message }}</span></div>
-    <details v-if="decision.ffmpegArgv?.length" class="argv"><summary>实际 FFmpeg 参数</summary><code>{{ decision.ffmpegArgv.join(' ') }}</code></details>
+    <div v-if="decision.ffmpegArgv?.length" class="argv"><b class="argv-heading">实际 FFmpeg 参数</b><code>{{ decision.ffmpegArgv.join(' ') }}</code></div>
   </div>
 </template>
 

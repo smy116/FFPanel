@@ -20,7 +20,7 @@ vi.mock('@tanstack/vue-virtual', () => ({
 const video: TaskFile = {
   id: 'file-1', taskId: 'task-1', relativePath: 'movie.mp4', stage: 'completed', attempt: 1,
   sourceSize: 1024, finalOutputPath: null, artifactSize: 512, progress: null,
-  parameterDecision: { source: { bitrateKbps: 228 }, requested: { bitrateKbps: 2000 }, effective: { bitrateKbps: 228 }, reasons: [] },
+  parameterDecision: { source: { bitrateKbps: 228 }, requested: { bitrateKbps: 2000 }, effective: { bitrateKbps: 228 }, reasons: [], ffmpegArgv: ['ffmpeg', '-i', 'movie.mp4'] },
   ffmpegOutput: 'frame=120 fps=30.0 bitrate=1800k',
   lastError: null, lastExitCode: 0, version: 1, startedAt: null, finishedAt: null, updatedAt: '',
 }
@@ -44,8 +44,11 @@ describe('file table details', () => {
     expect(document.body.textContent).toContain('文件详情')
     expect(document.body.textContent).toContain('源参数 Source')
     expect(document.body.textContent).toContain('实际参数 Effective')
-    expect(document.body.textContent).toContain('实际 FFmpeg 输出（stderr）')
+    expect(document.body.textContent).toContain('实际 FFmpeg 参数')
+    expect(document.body.textContent).toContain('ffmpeg -i movie.mp4')
+    expect(document.body.textContent).toContain('实际 FFmpeg 输出')
     expect(document.body.textContent).toContain('frame=120 fps=30.0 bitrate=1800k')
+    expect(document.querySelector('.argv details')).toBeNull()
     expect(document.querySelector('.file-detail-scroll .dialog-heading')).toBeNull()
   })
 })

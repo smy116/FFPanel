@@ -36,7 +36,7 @@ function close() { emit('update:open', false) }
           <p v-if="file?.lastError" class="file-detail-error">{{ file.lastError }}</p>
           <ParameterDecisionPanel v-if="selectedVideo?.parameterDecision" :decision="selectedVideo.parameterDecision" />
           <div v-if="file?.kind === 'video'" class="ffmpeg-output">
-            <div class="ffmpeg-output-heading"><b>实际 FFmpeg 输出（stderr）</b><span v-if="ffmpegOutput">已保存</span></div>
+            <div class="ffmpeg-output-heading"><b>实际 FFmpeg 输出</b><span v-if="ffmpegOutput">已保存</span></div>
             <pre v-if="ffmpegOutput">{{ ffmpegOutput }}</pre>
             <p v-else class="muted-copy">暂无捕获的 FFmpeg 输出。</p>
           </div>
