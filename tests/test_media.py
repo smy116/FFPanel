@@ -4,6 +4,7 @@ from pathlib import Path
 
 import pytest
 
+import ffpanel.media as media_module
 from ffpanel.config import Settings
 from ffpanel.media import (
     CapabilitySnapshot,
@@ -12,6 +13,7 @@ from ffpanel.media import (
     decide_parameters,
     normalize_probe,
     parse_progress_block,
+    probe_media,
 )
 from ffpanel.schemas import TranscodeParams
 
@@ -71,6 +73,33 @@ def test_sample_aspect_ratio_is_normalized_to_display_width() -> None:
     effective, _ = decide_parameters(result, TranscodeParams(hardware_mode="cpu_cpu", height=-1), CAPABILITIES)
     assert effective["width"] == 768
     assert effective["normalizeSar"] is True
+
+
+async def test_probe_media_ignores_ffprobe_diagnostics_from_stderr(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    input_path = Path(__file__)
+
+    class FakeProcess:
+        returncode = 0
+
+        async def communicate(self) -> tuple[bytes, bytes]:
+            return (
+                b"".join((
+                    b'{"streams":[{"codec_type":"video","codec_name":"h264",',
+                    b'"width":1280,"height":720}],"format":{"duration":"1"}}',
+                )),
+                b"[h264 @ 0x1] incomplete frame\n",
+            )
+
+    async def fake_create_subprocess_exec(*args: object, **kwargs: object) -> FakeProcess:
+        del args, kwargs
+        return FakeProcess()
+
+    monkeypatch.setattr(media_module.asyncio, "create_subprocess_exec", fake_create_subprocess_exec)
+    result = await probe_media(Settings(mock_media=False), input_path)
+
+    assert result["video"]["codec"] == "h264"
 
 
 def test_full_hardware_rotation_uses_rga_vpp_without_autorotate() -> None:

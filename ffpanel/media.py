@@ -92,7 +92,7 @@ async def probe_media(settings: Settings, path: Path) -> dict[str, Any]:
             "subtitles": [],
             "sizeBytes": size,
         }
-    output = await _capture([
+    output = await _capture_stdout([
         settings.ffprobe_path, "-v", "error", "-show_streams", "-show_format", "-of", "json", str(path)
     ])
     try:
@@ -400,8 +400,18 @@ async def _available(binary: str) -> bool:
 
 
 async def _capture(argv: list[str]) -> str:
+    return await _capture_output(argv, include_stderr=True)
+
+
+async def _capture_stdout(argv: list[str]) -> str:
+    """Capture machine-readable stdout without appending diagnostic stderr."""
+    return await _capture_output(argv, include_stderr=False)
+
+
+async def _capture_output(argv: list[str], *, include_stderr: bool) -> str:
     process = await asyncio.create_subprocess_exec(*argv, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE)
     stdout, stderr = await process.communicate()
     if process.returncode != 0:
         raise MediaError("media_command_failed", stderr.decode(errors="replace").strip()[-2000:])
-    return stdout.decode(errors="replace") + stderr.decode(errors="replace")
+    output = stdout.decode(errors="replace")
+    return output + stderr.decode(errors="replace") if include_stderr else output
