@@ -22,7 +22,7 @@ FFPanel 是面向 RK3588 的批量视频转码工作台。它把本地目录和�
 2. 把已有 `rclone.conf` 放到宿主机 `./config/rclone/rclone.conf`。
 3. 确认宿主机 vendor/BSP 内核提供 Compose 中列出的 MPP/RGA 设备节点。
 4. 执行 `docker compose -f docker-compose.yml up -d --build`。
-5. 打开 `http://设备地址:8080`。
+5. 打开 `http://设备地址:8090`。
 
 镜像固定构建 MPP、RGA、ffmpeg-rockchip 与 rclone 版本，不依赖宿主机 FFmpeg。若部分兼容设备节点不存在，可从 Compose 删除对应映射；`/dev/dri`、`/dev/dma_heap`、`/dev/rga`、`/dev/mpp_service` 是 RK3588 的主要节点。
 

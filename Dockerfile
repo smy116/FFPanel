@@ -53,6 +53,6 @@ RUN chmod +x /usr/local/bin/ffpanel-entrypoint && ldconfig
 ENV FFPANEL_CONFIG_DIR=/config FFPANEL_CACHE_DIR=/cache FFPANEL_LOCAL_ROOTS=/media \
     FFPANEL_RCLONE_CONFIG=/config/rclone/rclone.conf PYTHONUNBUFFERED=1
 VOLUME ["/config", "/cache", "/media"]
-EXPOSE 8080
-HEALTHCHECK --interval=30s --timeout=3s --start-period=15s --retries=3 CMD curl -fsS http://127.0.0.1:8080/healthz || exit 1
+EXPOSE 8090
+HEALTHCHECK --interval=30s --timeout=3s --start-period=15s --retries=3 CMD curl -fsS http://127.0.0.1:8090/healthz || exit 1
 ENTRYPOINT ["ffpanel-entrypoint"]

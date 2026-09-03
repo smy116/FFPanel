@@ -12,7 +12,7 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_prefix="FFPANEL_", env_file=".env", extra="ignore")
 
     host: str = "0.0.0.0"
-    port: int = 8080
+    port: int = 8090
     config_dir: Path = Path("/config")
     cache_dir: Path = Path("/cache")
     local_roots: str = "/media"
