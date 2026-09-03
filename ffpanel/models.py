@@ -106,7 +106,6 @@ class TaskFile(Base):
     completed_artifact_path: Mapped[str | None] = mapped_column(Text, nullable=True)
     final_output_path: Mapped[str | None] = mapped_column(Text, nullable=True)
     artifact_size: Mapped[int | None] = mapped_column(Integer, nullable=True)
-    artifact_fingerprint: Mapped[str | None] = mapped_column(String(200), nullable=True)
     progress_json: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
     capability_snapshot_id: Mapped[str | None] = mapped_column(String(36), nullable=True)
     last_error: Mapped[str | None] = mapped_column(Text, nullable=True)

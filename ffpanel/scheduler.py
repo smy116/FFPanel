@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
-import hashlib
 import shutil
 import time
 from collections import deque
@@ -391,7 +390,6 @@ class Scheduler:
                         ) from exc
                     raise
             artifact_size = temp_path.stat().st_size
-            fingerprint = f"sha256:{self._sha256(temp_path)}"
 
             if destination.kind == StorageKind.LOCAL:
                 assert final_path is not None
@@ -405,7 +403,6 @@ class Scheduler:
                         return
                     item.completed_artifact_path = str(temp_path)
                     item.artifact_size = artifact_size
-                    item.artifact_fingerprint = fingerprint
                     item.transcode_completed_at = utcnow()
                     item.version += 1
                     session.commit()
@@ -417,7 +414,6 @@ class Scheduler:
                     item.stage = FileStage.COMPLETED.value
                     item.completed_artifact_path = str(final_path)
                     item.artifact_size = artifact_size
-                    item.artifact_fingerprint = fingerprint
                     item.transcode_completed_at = utcnow()
                     item.finished_at = utcnow()
                     item.progress_json = (item.progress_json or {}) | {"percent": 100.0, "progress": "end"}
@@ -435,7 +431,6 @@ class Scheduler:
                     item.stage = FileStage.UPLOAD_QUEUED.value
                     item.completed_artifact_path = str(temp_path)
                     item.artifact_size = artifact_size
-                    item.artifact_fingerprint = fingerprint
                     item.transcode_completed_at = utcnow()
                     item.temp_output_path = None
                     item.version += 1
@@ -601,7 +596,7 @@ class Scheduler:
                 task = item.task
                 destination = StorageLocation.model_validate(task.destination_json)
                 if not item.completed_artifact_path or not self._artifact_valid(item):
-                    raise MediaError("artifact_invalid", "待上传转码产物缺失或校验失败")
+                    raise MediaError("artifact_invalid", "待上传转码产物缺失或文件大小不匹配")
                 item.stage = FileStage.UPLOADING.value
                 item.version += 1
                 task.current_upload_file_id = item.id
@@ -806,22 +801,10 @@ class Scheduler:
 
     @staticmethod
     def _artifact_valid(item: TaskFile) -> bool:
-        if not item.completed_artifact_path:
+        if not item.completed_artifact_path or item.artifact_size is None:
             return False
         path = Path(item.completed_artifact_path)
-        if not path.is_file() or (item.artifact_size is not None and path.stat().st_size != item.artifact_size):
-            return False
-        if item.artifact_fingerprint and item.artifact_fingerprint.startswith("sha256:"):
-            return Scheduler._sha256(path) == item.artifact_fingerprint.removeprefix("sha256:")
-        return True
-
-    @staticmethod
-    def _sha256(path: Path) -> str:
-        digest = hashlib.sha256()
-        with path.open("rb") as handle:
-            for chunk in iter(lambda: handle.read(1024 * 1024), b""):
-                digest.update(chunk)
-        return digest.hexdigest()
+        return path.is_file() and path.stat().st_size == item.artifact_size
 
     @staticmethod
     def _safe_unlink(path: Path | None) -> None:

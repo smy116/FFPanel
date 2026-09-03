@@ -230,7 +230,7 @@ async def retry_task(task_id: str, request: Request, session: Session = Depends(
             if final_stat:
                 item.stage = FileStage.FAILED.value
                 item.attempt += 1
-                item.last_error = "最终输出已存在但校验信息不匹配，未执行覆盖"
+                item.last_error = "最终输出已存在但文件大小不匹配，未执行覆盖"
                 item.version += 1
                 continue
         if item.completed_artifact_path and _artifact_valid(item):
@@ -339,20 +339,10 @@ def _locations_equal(source: StorageLocation, destination: StorageLocation, stor
 
 
 def _artifact_valid(item: TaskFile) -> bool:
-    if not item.completed_artifact_path:
+    if not item.completed_artifact_path or item.artifact_size is None:
         return False
     path = Path(item.completed_artifact_path)
-    if not path.is_file() or (item.artifact_size is not None and path.stat().st_size != item.artifact_size):
-        return False
-    if item.artifact_fingerprint and item.artifact_fingerprint.startswith("sha256:"):
-        import hashlib
-
-        digest = hashlib.sha256()
-        with path.open("rb") as handle:
-            for chunk in iter(lambda: handle.read(1024 * 1024), b""):
-                digest.update(chunk)
-        return digest.hexdigest() == item.artifact_fingerprint.removeprefix("sha256:")
-    return True
+    return path.is_file() and path.stat().st_size == item.artifact_size
 
 
 def _safe_unlink(path: Path) -> None:
