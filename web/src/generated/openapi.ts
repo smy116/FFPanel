@@ -503,6 +503,8 @@ export interface components {
             artifactSize?: number | null;
             progress?: components["schemas"]["TranscodeProgress"] | null;
             parameterDecision?: components["schemas"]["ParameterDecision"] | null;
+            /** Ffmpegoutput */
+            ffmpegOutput?: string | null;
             /** Lasterror */
             lastError?: string | null;
             /** Lastexitcode */

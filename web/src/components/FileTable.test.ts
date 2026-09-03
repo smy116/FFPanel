@@ -1,7 +1,7 @@
 import { shallowRef } from 'vue'
 import { flushPromises, mount } from '@vue/test-utils'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import type { CompanionFile, LogEntry, TaskFile } from '../types'
+import type { CompanionFile, TaskFile } from '../types'
 import FileTable from './FileTable.vue'
 
 const measureElement = vi.hoisted(() => vi.fn())
@@ -21,6 +21,7 @@ const video: TaskFile = {
   id: 'file-1', taskId: 'task-1', relativePath: 'movie.mp4', stage: 'completed', attempt: 1,
   sourceSize: 1024, finalOutputPath: null, artifactSize: 512, progress: null,
   parameterDecision: { source: { bitrateKbps: 228 }, requested: { bitrateKbps: 2000 }, effective: { bitrateKbps: 228 }, reasons: [] },
+  ffmpegOutput: 'frame=120 fps=30.0 bitrate=1800k',
   lastError: null, lastExitCode: 0, version: 1, startedAt: null, finishedAt: null, updatedAt: '',
 }
 
@@ -29,13 +30,11 @@ const companion: CompanionFile = {
   attempt: 1, sourceSize: 2048, finalOutputPath: null, lastError: null, version: 1, updatedAt: '',
 }
 
-const logs: LogEntry[] = [{ level: 'info', message: 'frame=120 fps=30.0 bitrate=1800k', fileId: 'file-1', createdAt: '' }]
-
 describe('file table details', () => {
   beforeEach(() => measureElement.mockClear())
 
   it('keeps the headers visible and opens file details in a modal', async () => {
-    const wrapper = mount(FileTable, { props: { files: [video], companions: [companion], logs } })
+    const wrapper = mount(FileTable, { props: { files: [video], companions: [companion] } })
     await flushPromises()
 
     expect(wrapper.find('.file-table-head').text()).toContain('文件类型状态尝试')

@@ -94,7 +94,7 @@ function eta(seconds: number | null | undefined) { if (seconds == null) return '
           <div><button v-if="['queued','running'].includes(task.status)" class="secondary-button" :disabled="busyId === task.id" @click="stop(task)"><CircleStop :size="16" />停止</button><button v-if="['interrupted','failed','partial_failed','stopped'].includes(task.status)" class="secondary-button" @click="dialog = { type: 'retry', task }"><RotateCcw :size="16" />Retry</button><button class="icon-button danger" title="删除任务" @click="dialog = { type: 'delete', task }"><Trash2 :size="16" /></button></div>
         </footer>
         <div v-if="expandedId === task.id" class="task-details">
-          <FileTable :files="files[task.id] || []" :companions="companions[task.id] || []" :logs="logs[task.id] || []" />
+          <FileTable :files="files[task.id] || []" :companions="companions[task.id] || []" />
           <details class="log-panel"><summary>诊断日志 · 最近 {{ logs[task.id]?.length || 0 }} 条</summary><div><p v-for="(line, index) in logs[task.id] || []" :key="index"><time>{{ formatDate(line.createdAt) }}</time><span :class="line.level">{{ line.message }}</span></p><p v-if="!logs[task.id]?.length" class="muted-copy">暂无诊断日志</p></div></details>
         </div>
       </article>

@@ -56,6 +56,7 @@ export interface TaskFile {
   artifactSize: number | null
   progress: TranscodeProgress | null
   parameterDecision?: ParameterDecision | null
+  ffmpegOutput: string | null
   lastError: string | null
   lastExitCode: number | null
   version: number

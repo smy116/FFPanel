@@ -100,6 +100,7 @@ class TaskFile(Base):
     effective_params_json: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
     decision_log_json: Mapped[list[dict[str, Any]] | None] = mapped_column(JSON, nullable=True)
     ffmpeg_argv_json: Mapped[list[str] | None] = mapped_column(JSON, nullable=True)
+    ffmpeg_output: Mapped[str | None] = mapped_column(Text, nullable=True)
     input_cache_path: Mapped[str | None] = mapped_column(Text, nullable=True)
     temp_output_path: Mapped[str | None] = mapped_column(Text, nullable=True)
     completed_artifact_path: Mapped[str | None] = mapped_column(Text, nullable=True)

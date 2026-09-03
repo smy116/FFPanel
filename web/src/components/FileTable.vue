@@ -1,10 +1,10 @@
 <script setup lang="ts">
 import { computed, ref, type ComponentPublicInstance } from 'vue'
 import { useVirtualizer } from '@tanstack/vue-virtual'
-import type { CompanionFile, LogEntry, TaskFile } from '../types'
+import type { CompanionFile, TaskFile } from '../types'
 import FileDetailDialog from './FileDetailDialog.vue'
 
-const props = defineProps<{ files: TaskFile[]; companions: CompanionFile[]; logs?: LogEntry[] }>()
+const props = defineProps<{ files: TaskFile[]; companions: CompanionFile[] }>()
 const parentRef = ref<HTMLElement | null>(null)
 type FileRow = (TaskFile & { kind: 'video' }) | (CompanionFile & { kind: 'companion' })
 const rows = computed<FileRow[]>(() => [
@@ -20,7 +20,6 @@ const virtualizer = useVirtualizer(computed(() => ({
 })))
 const selectedId = ref<string | null>(null)
 const selectedFile = computed(() => rows.value.find((row) => row.id === selectedId.value) ?? null)
-const selectedLogs = computed(() => selectedId.value ? (props.logs || []).filter((log) => log.fileId === selectedId.value) : [])
 const stageLabel: Record<string, string> = { pending: '等待', downloading: '下载', probing: '预检', transcoding: '转码', upload_queued: '待上传', uploading: '上传', copying: '复制', completed: '完成', failed: '失败', interrupted: '中断', skipped: '跳过' }
 function measureRow(node: Element | ComponentPublicInstance | null) {
   if (node instanceof Element) virtualizer.value.measureElement(node)
@@ -45,6 +44,6 @@ function closeDetails(open: boolean) { if (!open) selectedId.value = null }
       </div>
     </div>
   </div>
-  <FileDetailDialog :open="selectedFile !== null" :file="selectedFile" :logs="selectedLogs" @update:open="closeDetails" />
+  <FileDetailDialog :open="selectedFile !== null" :file="selectedFile" @update:open="closeDetails" />
 </template>
 

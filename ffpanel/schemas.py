@@ -155,6 +155,7 @@ class TaskFileResponse(APIModel):
     artifact_size: int | None = None
     progress: TranscodeProgress | None = None
     parameter_decision: ParameterDecision | None = None
+    ffmpeg_output: str | None = None
     last_error: str | None = None
     last_exit_code: int | None = None
     version: int

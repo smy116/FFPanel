@@ -1896,6 +1896,17 @@
               }
             ]
           },
+          "ffmpegOutput": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ffmpegoutput"
+          },
           "lastError": {
             "anyOf": [
               {

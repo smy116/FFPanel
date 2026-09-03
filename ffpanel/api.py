@@ -253,6 +253,7 @@ async def retry_task(task_id: str, request: Request, session: Session = Depends(
             item.effective_params_json = None
             item.decision_log_json = None
             item.progress_json = None
+            item.ffmpeg_output = None
         item.attempt += 1
         item.last_error = None
         item.finished_at = None

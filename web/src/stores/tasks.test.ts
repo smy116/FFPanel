@@ -29,7 +29,7 @@ describe('task SSE merge', () => {
     const store = useTasksStore()
     const value = task(2, 'running')
     value.currentTranscodeFileId = 'file-1'
-    value.activeTranscodeFile = { id: 'file-1', taskId: 'task-1', relativePath: 'movie.mkv', stage: 'transcoding', attempt: 1, sourceSize: 1, finalOutputPath: null, artifactSize: null, progress: null, lastError: null, lastExitCode: null, version: 1, startedAt: null, finishedAt: null, updatedAt: '' }
+    value.activeTranscodeFile = { id: 'file-1', taskId: 'task-1', relativePath: 'movie.mkv', stage: 'transcoding', attempt: 1, sourceSize: 1, finalOutputPath: null, artifactSize: null, progress: null, ffmpegOutput: null, lastError: null, lastExitCode: null, version: 1, startedAt: null, finishedAt: null, updatedAt: '' }
     store.tasks = [value]
     store.mergeEvent({ id: '3', type: 'transcode.progress', version: 3, taskId: 'task-1', fileId: 'file-1', updatedAt: '', payload: { taskId: 'task-1', fileId: 'file-1', stage: 'transcoding', frame: 99, fps: 30, bitrateKbps: null, outTimeMs: 1000, totalSizeBytes: null, speed: 1, percent: null, etaSeconds: null, progress: 'continue', updatedAt: '' } } as EventEnvelope)
     expect(store.tasks[0]?.activeTranscodeFile?.progress?.percent).toBeNull()

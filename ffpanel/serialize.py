@@ -52,6 +52,7 @@ def file_dict(item: TaskFile, *, include_decision: bool = True) -> dict[str, Any
         "finalOutputPath": item.final_output_path,
         "artifactSize": item.artifact_size,
         "progress": item.progress_json,
+        "ffmpegOutput": item.ffmpeg_output,
         "lastError": item.last_error,
         "lastExitCode": item.last_exit_code,
         "version": item.version,

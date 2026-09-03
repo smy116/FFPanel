@@ -268,6 +268,7 @@ class Scheduler:
                 task.version += 1
                 item.stage = FileStage.DOWNLOADING.value if source.kind == StorageKind.RCLONE else FileStage.PROBING.value
                 item.started_at = item.started_at or utcnow()
+                item.ffmpeg_output = None
                 item.version += 1
                 session.commit()
                 task_id, relative = task.id, item.relative_path
@@ -338,7 +339,7 @@ class Scheduler:
                         input_path,
                         temp_path,
                     )
-                    await self._set_transcode_exit_code(item_id, exit_code)
+                    await self._set_transcode_result(item_id, exit_code, stderr_tail)
                     if self._task_stop_requested(task_id):
                         raise MediaError("task_stopped", "任务已停止")
                     if exit_code != 0:
@@ -493,12 +494,13 @@ class Scheduler:
             session.commit()
             await self._publish_file(item)
 
-    async def _set_transcode_exit_code(self, item_id: str, exit_code: int) -> None:
+    async def _set_transcode_result(self, item_id: str, exit_code: int, ffmpeg_output: str) -> None:
         with self.sessions() as session:
             item = session.get(TaskFile, item_id)
             if not item:
                 return
             item.last_exit_code = exit_code
+            item.ffmpeg_output = ffmpeg_output or None
             item.version += 1
             session.commit()
 

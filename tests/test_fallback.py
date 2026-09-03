@@ -203,6 +203,7 @@ def test_disabling_fallback_keeps_strict_single_mode(
 
     assert task["status"] == "failed"
     assert modes == ["mpp_mpp"]
+    assert item["ffmpegOutput"] == "strict failure"
     assert "FFmpeg 退出码 17" in item["lastError"]
     assert "所有转码模式均失败" not in item["lastError"]
     assert item["attempt"] == 1
