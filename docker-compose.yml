@@ -1,0 +1,23 @@
+services:
+  ffpanel:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: ffpanel:1.0.0-rk3588
+    restart: unless-stopped
+    env_file: .env
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./config:/config
+      - ./cache:/cache
+      - ./media:/media
+    devices:
+      - /dev/dri:/dev/dri
+      - /dev/dma_heap:/dev/dma_heap
+      - /dev/rga:/dev/rga
+      - /dev/mpp_service:/dev/mpp_service
+    group_add:
+      - video
+      - render
+    stop_grace_period: 20s

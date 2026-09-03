@@ -1,0 +1,2436 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "FFPanel API",
+    "description": "RK3588 批量视频转码控制面板",
+    "version": "1.0.0"
+  },
+  "paths": {
+    "/api/v1/remotes": {
+      "get": {
+        "summary": "Remotes",
+        "operationId": "remotes_api_v1_remotes_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RemotesResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "需要身份认证",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "资源不存在",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "状态或输出冲突",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "参数或存储请求无效",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "数据库或依赖暂不可用",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/storage/browse": {
+      "post": {
+        "summary": "Browse",
+        "operationId": "browse_api_v1_storage_browse_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BrowseRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BrowseResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "需要身份认证",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "资源不存在",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "状态或输出冲突",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "参数或存储请求无效",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "数据库或依赖暂不可用",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/storage/scan": {
+      "post": {
+        "summary": "Scan",
+        "operationId": "scan_api_v1_storage_scan_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ScanRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScanSummary"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "需要身份认证",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "资源不存在",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "状态或输出冲突",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "参数或存储请求无效",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "数据库或依赖暂不可用",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/tasks": {
+      "post": {
+        "summary": "Create Task",
+        "operationId": "create_task_api_v1_tasks_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateTaskRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TaskResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "需要身份认证",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "资源不存在",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "状态或输出冲突",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "参数或存储请求无效",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "数据库或依赖暂不可用",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/snapshot": {
+      "get": {
+        "summary": "Snapshot",
+        "operationId": "snapshot_api_v1_snapshot_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SnapshotResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "需要身份认证",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "资源不存在",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "状态或输出冲突",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "参数或存储请求无效",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "数据库或依赖暂不可用",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/tasks/{task_id}": {
+      "get": {
+        "summary": "Task Detail",
+        "operationId": "task_detail_api_v1_tasks__task_id__get",
+        "parameters": [
+          {
+            "name": "task_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Task Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TaskResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "需要身份认证",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "资源不存在",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "状态或输出冲突",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "参数或存储请求无效",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "数据库或依赖暂不可用",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "summary": "Delete Task",
+        "operationId": "delete_task_api_v1_tasks__task_id__delete",
+        "parameters": [
+          {
+            "name": "task_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Task Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "401": {
+            "description": "需要身份认证",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "资源不存在",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "状态或输出冲突",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "参数或存储请求无效",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "数据库或依赖暂不可用",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/tasks/{task_id}/files": {
+      "get": {
+        "summary": "Task Files",
+        "operationId": "task_files_api_v1_tasks__task_id__files_get",
+        "parameters": [
+          {
+            "name": "task_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Task Id"
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0,
+              "title": "Offset"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 500,
+              "minimum": 1,
+              "default": 100,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TaskFilesResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "需要身份认证",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "资源不存在",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "状态或输出冲突",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "参数或存储请求无效",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "数据库或依赖暂不可用",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/tasks/{task_id}/companions": {
+      "get": {
+        "summary": "Task Companions",
+        "operationId": "task_companions_api_v1_tasks__task_id__companions_get",
+        "parameters": [
+          {
+            "name": "task_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Task Id"
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0,
+              "title": "Offset"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 500,
+              "minimum": 1,
+              "default": 100,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CompanionFilesResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "需要身份认证",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "资源不存在",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "状态或输出冲突",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "参数或存储请求无效",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "数据库或依赖暂不可用",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/tasks/{task_id}/logs": {
+      "get": {
+        "summary": "Task Logs",
+        "operationId": "task_logs_api_v1_tasks__task_id__logs_get",
+        "parameters": [
+          {
+            "name": "task_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Task Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LogsResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "需要身份认证",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "资源不存在",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "状态或输出冲突",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "参数或存储请求无效",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "数据库或依赖暂不可用",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/tasks/{task_id}/stop": {
+      "post": {
+        "summary": "Stop Task",
+        "operationId": "stop_task_api_v1_tasks__task_id__stop_post",
+        "parameters": [
+          {
+            "name": "task_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Task Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TaskResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "需要身份认证",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "资源不存在",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "状态或输出冲突",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "参数或存储请求无效",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "数据库或依赖暂不可用",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/tasks/{task_id}/retry": {
+      "post": {
+        "summary": "Retry Task",
+        "operationId": "retry_task_api_v1_tasks__task_id__retry_post",
+        "parameters": [
+          {
+            "name": "task_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Task Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TaskResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "需要身份认证",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "资源不存在",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "状态或输出冲突",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "参数或存储请求无效",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "数据库或依赖暂不可用",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/events": {
+      "get": {
+        "summary": "Events",
+        "operationId": "events_api_v1_events_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              },
+              "text/event-stream": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "需要身份认证",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "资源不存在",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "状态或输出冲突",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "参数或存储请求无效",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "数据库或依赖暂不可用",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/healthz": {
+      "get": {
+        "summary": "Health",
+        "operationId": "health_healthz_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "type": "string"
+                  },
+                  "type": "object",
+                  "title": "Response Health Healthz Get"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "BrowseEntryResponse": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "path": {
+            "type": "string",
+            "title": "Path"
+          },
+          "isDir": {
+            "type": "boolean",
+            "title": "Isdir"
+          },
+          "size": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Size"
+          },
+          "modifiedAt": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Modifiedat"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "path",
+          "isDir"
+        ],
+        "title": "BrowseEntryResponse"
+      },
+      "BrowseRequest": {
+        "properties": {
+          "location": {
+            "$ref": "#/components/schemas/StorageLocation"
+          }
+        },
+        "type": "object",
+        "required": [
+          "location"
+        ],
+        "title": "BrowseRequest"
+      },
+      "BrowseResponse": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/BrowseEntryResponse"
+            },
+            "type": "array",
+            "title": "Items"
+          }
+        },
+        "type": "object",
+        "required": [
+          "items"
+        ],
+        "title": "BrowseResponse"
+      },
+      "CompanionFilePolicy": {
+        "type": "string",
+        "enum": [
+          "none",
+          "subtitles",
+          "all_non_video"
+        ],
+        "title": "CompanionFilePolicy"
+      },
+      "CompanionFileResponse": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "taskId": {
+            "type": "string",
+            "title": "Taskid"
+          },
+          "relativePath": {
+            "type": "string",
+            "title": "Relativepath"
+          },
+          "category": {
+            "type": "string",
+            "title": "Category"
+          },
+          "stage": {
+            "$ref": "#/components/schemas/CompanionStage"
+          },
+          "attempt": {
+            "type": "integer",
+            "title": "Attempt"
+          },
+          "sourceSize": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sourcesize"
+          },
+          "finalOutputPath": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Finaloutputpath"
+          },
+          "lastError": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lasterror"
+          },
+          "version": {
+            "type": "integer",
+            "title": "Version"
+          },
+          "startedAt": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Startedat"
+          },
+          "finishedAt": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Finishedat"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Updatedat"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "taskId",
+          "relativePath",
+          "category",
+          "stage",
+          "attempt",
+          "version",
+          "updatedAt"
+        ],
+        "title": "CompanionFileResponse"
+      },
+      "CompanionFilesResponse": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/CompanionFileResponse"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          },
+          "offset": {
+            "type": "integer",
+            "title": "Offset"
+          },
+          "limit": {
+            "type": "integer",
+            "title": "Limit"
+          }
+        },
+        "type": "object",
+        "required": [
+          "items",
+          "total",
+          "offset",
+          "limit"
+        ],
+        "title": "CompanionFilesResponse"
+      },
+      "CompanionStage": {
+        "type": "string",
+        "enum": [
+          "pending",
+          "copying",
+          "completed",
+          "failed",
+          "interrupted",
+          "skipped"
+        ],
+        "title": "CompanionStage"
+      },
+      "CreateTaskRequest": {
+        "properties": {
+          "name": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 200
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "source": {
+            "$ref": "#/components/schemas/StorageLocation"
+          },
+          "destination": {
+            "$ref": "#/components/schemas/StorageLocation"
+          },
+          "scanToken": {
+            "type": "string",
+            "title": "Scantoken"
+          },
+          "companionFilePolicy": {
+            "$ref": "#/components/schemas/CompanionFilePolicy",
+            "default": "subtitles"
+          },
+          "params": {
+            "$ref": "#/components/schemas/TranscodeParams"
+          }
+        },
+        "type": "object",
+        "required": [
+          "source",
+          "destination",
+          "scanToken",
+          "params"
+        ],
+        "title": "CreateTaskRequest"
+      },
+      "ErrorResponse": {
+        "properties": {
+          "code": {
+            "type": "string",
+            "title": "Code"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message"
+          },
+          "details": {
+            "anyOf": [
+              {},
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Details"
+          },
+          "requestId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Requestid"
+          }
+        },
+        "type": "object",
+        "required": [
+          "code",
+          "message"
+        ],
+        "title": "ErrorResponse"
+      },
+      "FileStage": {
+        "type": "string",
+        "enum": [
+          "pending",
+          "downloading",
+          "probing",
+          "transcoding",
+          "upload_queued",
+          "uploading",
+          "completed",
+          "failed",
+          "interrupted",
+          "skipped"
+        ],
+        "title": "FileStage"
+      },
+      "LogEntryResponse": {
+        "properties": {
+          "level": {
+            "type": "string",
+            "title": "Level"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message"
+          },
+          "fileId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fileid"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Createdat"
+          }
+        },
+        "type": "object",
+        "required": [
+          "level",
+          "message",
+          "createdAt"
+        ],
+        "title": "LogEntryResponse"
+      },
+      "LogsResponse": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/LogEntryResponse"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "limit": {
+            "type": "integer",
+            "title": "Limit"
+          }
+        },
+        "type": "object",
+        "required": [
+          "items",
+          "limit"
+        ],
+        "title": "LogsResponse"
+      },
+      "MetricsResponse": {
+        "properties": {
+          "queuedTasks": {
+            "type": "integer",
+            "title": "Queuedtasks"
+          },
+          "completedTasks": {
+            "type": "integer",
+            "title": "Completedtasks"
+          },
+          "completedVideos": {
+            "type": "integer",
+            "title": "Completedvideos"
+          },
+          "sourceBytes": {
+            "type": "integer",
+            "title": "Sourcebytes"
+          },
+          "outputBytes": {
+            "type": "integer",
+            "title": "Outputbytes"
+          }
+        },
+        "type": "object",
+        "required": [
+          "queuedTasks",
+          "completedTasks",
+          "completedVideos",
+          "sourceBytes",
+          "outputBytes"
+        ],
+        "title": "MetricsResponse"
+      },
+      "ParameterDecision": {
+        "properties": {
+          "source": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source"
+          },
+          "requested": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Requested"
+          },
+          "effective": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Effective"
+          },
+          "reasons": {
+            "items": {
+              "$ref": "#/components/schemas/ParameterReason"
+            },
+            "type": "array",
+            "title": "Reasons"
+          },
+          "ffmpegArgv": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ffmpegargv"
+          }
+        },
+        "type": "object",
+        "required": [
+          "source",
+          "requested",
+          "effective",
+          "reasons"
+        ],
+        "title": "ParameterDecision"
+      },
+      "ParameterReason": {
+        "properties": {
+          "field": {
+            "type": "string",
+            "title": "Field"
+          },
+          "code": {
+            "type": "string",
+            "title": "Code"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message"
+          }
+        },
+        "type": "object",
+        "required": [
+          "field",
+          "code",
+          "message"
+        ],
+        "title": "ParameterReason"
+      },
+      "RemotesResponse": {
+        "properties": {
+          "items": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "available": {
+            "type": "boolean",
+            "title": "Available"
+          },
+          "configPath": {
+            "type": "string",
+            "title": "Configpath"
+          }
+        },
+        "type": "object",
+        "required": [
+          "items",
+          "available",
+          "configPath"
+        ],
+        "title": "RemotesResponse"
+      },
+      "RuntimeStatusResponse": {
+        "properties": {
+          "ffmpegVersion": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ffmpegversion"
+          },
+          "ffprobeAvailable": {
+            "type": "boolean",
+            "title": "Ffprobeavailable"
+          },
+          "rcloneAvailable": {
+            "type": "boolean",
+            "title": "Rcloneavailable"
+          },
+          "mppAvailable": {
+            "type": "boolean",
+            "title": "Mppavailable"
+          },
+          "rgaAvailable": {
+            "type": "boolean",
+            "title": "Rgaavailable"
+          },
+          "encoders": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Encoders"
+          },
+          "decoders": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Decoders"
+          },
+          "filters": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Filters"
+          },
+          "devices": {
+            "additionalProperties": {
+              "type": "boolean"
+            },
+            "type": "object",
+            "title": "Devices"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "transcodeSlot": {
+            "type": "integer",
+            "title": "Transcodeslot"
+          },
+          "uploadSlot": {
+            "type": "integer",
+            "title": "Uploadslot"
+          },
+          "uploadQueued": {
+            "type": "integer",
+            "title": "Uploadqueued"
+          },
+          "cpuPercent": {
+            "type": "number",
+            "title": "Cpupercent"
+          },
+          "memoryPercent": {
+            "type": "number",
+            "title": "Memorypercent"
+          }
+        },
+        "type": "object",
+        "required": [
+          "ffprobeAvailable",
+          "rcloneAvailable",
+          "mppAvailable",
+          "rgaAvailable",
+          "encoders",
+          "decoders",
+          "filters",
+          "devices",
+          "transcodeSlot",
+          "uploadSlot",
+          "uploadQueued",
+          "cpuPercent",
+          "memoryPercent"
+        ],
+        "title": "RuntimeStatusResponse"
+      },
+      "ScanRequest": {
+        "properties": {
+          "source": {
+            "$ref": "#/components/schemas/StorageLocation"
+          },
+          "companionFilePolicy": {
+            "$ref": "#/components/schemas/CompanionFilePolicy",
+            "default": "subtitles"
+          }
+        },
+        "type": "object",
+        "required": [
+          "source"
+        ],
+        "title": "ScanRequest"
+      },
+      "ScanSummary": {
+        "properties": {
+          "scanToken": {
+            "type": "string",
+            "title": "Scantoken"
+          },
+          "videoCount": {
+            "type": "integer",
+            "title": "Videocount"
+          },
+          "subtitleCount": {
+            "type": "integer",
+            "title": "Subtitlecount"
+          },
+          "otherCount": {
+            "type": "integer",
+            "title": "Othercount"
+          },
+          "companionCount": {
+            "type": "integer",
+            "title": "Companioncount"
+          },
+          "totalBytes": {
+            "type": "integer",
+            "title": "Totalbytes"
+          },
+          "expiresAt": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Expiresat"
+          }
+        },
+        "type": "object",
+        "required": [
+          "scanToken",
+          "videoCount",
+          "subtitleCount",
+          "otherCount",
+          "companionCount",
+          "totalBytes",
+          "expiresAt"
+        ],
+        "title": "ScanSummary"
+      },
+      "SnapshotResponse": {
+        "properties": {
+          "tasks": {
+            "items": {
+              "$ref": "#/components/schemas/TaskResponse"
+            },
+            "type": "array",
+            "title": "Tasks"
+          },
+          "system": {
+            "$ref": "#/components/schemas/RuntimeStatusResponse"
+          },
+          "metrics": {
+            "$ref": "#/components/schemas/MetricsResponse"
+          }
+        },
+        "type": "object",
+        "required": [
+          "tasks",
+          "system",
+          "metrics"
+        ],
+        "title": "SnapshotResponse"
+      },
+      "StorageKind": {
+        "type": "string",
+        "enum": [
+          "local",
+          "rclone"
+        ],
+        "title": "StorageKind"
+      },
+      "StorageLocation": {
+        "properties": {
+          "kind": {
+            "$ref": "#/components/schemas/StorageKind"
+          },
+          "path": {
+            "type": "string",
+            "title": "Path"
+          },
+          "remote": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Remote"
+          }
+        },
+        "type": "object",
+        "required": [
+          "kind",
+          "path"
+        ],
+        "title": "StorageLocation"
+      },
+      "TaskFileResponse": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "taskId": {
+            "type": "string",
+            "title": "Taskid"
+          },
+          "relativePath": {
+            "type": "string",
+            "title": "Relativepath"
+          },
+          "stage": {
+            "$ref": "#/components/schemas/FileStage"
+          },
+          "attempt": {
+            "type": "integer",
+            "title": "Attempt"
+          },
+          "sourceSize": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sourcesize"
+          },
+          "finalOutputPath": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Finaloutputpath"
+          },
+          "artifactSize": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Artifactsize"
+          },
+          "progress": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TranscodeProgress"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "parameterDecision": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ParameterDecision"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "lastError": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lasterror"
+          },
+          "lastExitCode": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lastexitcode"
+          },
+          "version": {
+            "type": "integer",
+            "title": "Version"
+          },
+          "startedAt": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Startedat"
+          },
+          "finishedAt": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Finishedat"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Updatedat"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "taskId",
+          "relativePath",
+          "stage",
+          "attempt",
+          "version",
+          "updatedAt"
+        ],
+        "title": "TaskFileResponse"
+      },
+      "TaskFilesResponse": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/TaskFileResponse"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          },
+          "offset": {
+            "type": "integer",
+            "title": "Offset"
+          },
+          "limit": {
+            "type": "integer",
+            "title": "Limit"
+          }
+        },
+        "type": "object",
+        "required": [
+          "items",
+          "total",
+          "offset",
+          "limit"
+        ],
+        "title": "TaskFilesResponse"
+      },
+      "TaskResponse": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "status": {
+            "$ref": "#/components/schemas/TaskStatus"
+          },
+          "source": {
+            "$ref": "#/components/schemas/StorageLocation"
+          },
+          "destination": {
+            "$ref": "#/components/schemas/StorageLocation"
+          },
+          "requestedParams": {
+            "$ref": "#/components/schemas/TranscodeParams"
+          },
+          "companionFilePolicy": {
+            "$ref": "#/components/schemas/CompanionFilePolicy"
+          },
+          "totalFiles": {
+            "type": "integer",
+            "title": "Totalfiles"
+          },
+          "completedFiles": {
+            "type": "integer",
+            "title": "Completedfiles"
+          },
+          "failedFiles": {
+            "type": "integer",
+            "title": "Failedfiles"
+          },
+          "skippedFiles": {
+            "type": "integer",
+            "title": "Skippedfiles"
+          },
+          "companionTotal": {
+            "type": "integer",
+            "title": "Companiontotal"
+          },
+          "companionCompleted": {
+            "type": "integer",
+            "title": "Companioncompleted"
+          },
+          "companionFailed": {
+            "type": "integer",
+            "title": "Companionfailed"
+          },
+          "percent": {
+            "type": "number",
+            "title": "Percent"
+          },
+          "currentTranscodeFileId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Currenttranscodefileid"
+          },
+          "currentUploadFileId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Currentuploadfileid"
+          },
+          "activeTranscodeFile": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TaskFileResponse"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "activeUploadFile": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TaskFileResponse"
+              },
+              {
+                "$ref": "#/components/schemas/CompanionFileResponse"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Activeuploadfile"
+          },
+          "uploadQueued": {
+            "type": "integer",
+            "title": "Uploadqueued",
+            "default": 0
+          },
+          "retryCount": {
+            "type": "integer",
+            "title": "Retrycount"
+          },
+          "lastError": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lasterror"
+          },
+          "interruptedReason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Interruptedreason"
+          },
+          "version": {
+            "type": "integer",
+            "title": "Version"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Createdat"
+          },
+          "startedAt": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Startedat"
+          },
+          "finishedAt": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Finishedat"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Updatedat"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "status",
+          "source",
+          "destination",
+          "requestedParams",
+          "companionFilePolicy",
+          "totalFiles",
+          "completedFiles",
+          "failedFiles",
+          "skippedFiles",
+          "companionTotal",
+          "companionCompleted",
+          "companionFailed",
+          "percent",
+          "retryCount",
+          "version",
+          "createdAt",
+          "updatedAt"
+        ],
+        "title": "TaskResponse"
+      },
+      "TaskStatus": {
+        "type": "string",
+        "enum": [
+          "queued",
+          "running",
+          "completed",
+          "partial_failed",
+          "failed",
+          "stopped",
+          "interrupted"
+        ],
+        "title": "TaskStatus"
+      },
+      "TranscodeParams": {
+        "properties": {
+          "hardwareMode": {
+            "type": "string",
+            "enum": [
+              "mpp_mpp",
+              "cpu_mpp",
+              "cpu_cpu"
+            ],
+            "title": "Hardwaremode",
+            "default": "mpp_mpp"
+          },
+          "videoCodec": {
+            "type": "string",
+            "enum": [
+              "h264",
+              "hevc"
+            ],
+            "title": "Videocodec",
+            "default": "hevc"
+          },
+          "container": {
+            "type": "string",
+            "enum": [
+              "mp4",
+              "mkv"
+            ],
+            "title": "Container",
+            "default": "mp4"
+          },
+          "height": {
+            "type": "integer",
+            "enum": [
+              -1,
+              360,
+              480,
+              720,
+              1080,
+              2160
+            ],
+            "title": "Height",
+            "default": 720
+          },
+          "bitrateKbps": {
+            "type": "integer",
+            "maximum": 100000.0,
+            "minimum": 100.0,
+            "title": "Bitratekbps",
+            "default": 2000
+          },
+          "smartBitrateCap": {
+            "type": "boolean",
+            "title": "Smartbitratecap",
+            "default": true
+          },
+          "frameRate": {
+            "type": "string",
+            "enum": [
+              "source",
+              "24",
+              "25",
+              "30",
+              "50",
+              "60"
+            ],
+            "title": "Framerate",
+            "default": "source"
+          },
+          "gop": {
+            "type": "integer",
+            "maximum": 600.0,
+            "minimum": 1.0,
+            "title": "Gop",
+            "default": 120
+          },
+          "audioStrategy": {
+            "type": "string",
+            "enum": [
+              "copy",
+              "aac",
+              "drop"
+            ],
+            "title": "Audiostrategy",
+            "default": "copy"
+          },
+          "subtitleStrategy": {
+            "type": "string",
+            "enum": [
+              "auto",
+              "copy",
+              "drop"
+            ],
+            "title": "Subtitlestrategy",
+            "default": "auto"
+          }
+        },
+        "type": "object",
+        "title": "TranscodeParams"
+      },
+      "TranscodeProgress": {
+        "properties": {
+          "taskId": {
+            "type": "string",
+            "title": "Taskid"
+          },
+          "fileId": {
+            "type": "string",
+            "title": "Fileid"
+          },
+          "stage": {
+            "type": "string",
+            "const": "transcoding",
+            "title": "Stage",
+            "default": "transcoding"
+          },
+          "frame": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Frame"
+          },
+          "fps": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fps"
+          },
+          "bitrateKbps": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Bitratekbps"
+          },
+          "outTimeMs": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Outtimems"
+          },
+          "totalSizeBytes": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Totalsizebytes"
+          },
+          "speed": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Speed"
+          },
+          "percent": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Percent"
+          },
+          "etaSeconds": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Etaseconds"
+          },
+          "progress": {
+            "type": "string",
+            "enum": [
+              "continue",
+              "end"
+            ],
+            "title": "Progress",
+            "default": "continue"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Updatedat"
+          }
+        },
+        "type": "object",
+        "required": [
+          "taskId",
+          "fileId",
+          "updatedAt"
+        ],
+        "title": "TranscodeProgress"
+      }
+    }
+  }
+}
