@@ -2,14 +2,16 @@
 import { computed } from 'vue'
 import { DialogContent, DialogDescription, DialogOverlay, DialogPortal, DialogRoot, DialogTitle } from 'reka-ui'
 import { X } from 'lucide-vue-next'
-import type { CompanionFile, TaskFile } from '../types'
+import type { CompanionFile, LogEntry, TaskFile } from '../types'
 import ParameterDecisionPanel from './ParameterDecisionPanel.vue'
 
 type FileDetail = (TaskFile & { kind: 'video' }) | (CompanionFile & { kind: 'companion' })
 
-const props = defineProps<{ open: boolean; file: FileDetail | null }>()
+const props = defineProps<{ open: boolean; file: FileDetail | null; logs: LogEntry[] }>()
 const emit = defineEmits<{ 'update:open': [value: boolean] }>()
 const selectedVideo = computed(() => props.file?.kind === 'video' ? props.file : null)
+const ffmpegLogs = computed(() => props.logs.filter((log) => log.level === 'info'))
+const ffmpegOutput = computed(() => ffmpegLogs.value.map((log) => log.message).join('\n'))
 const stageLabel: Record<string, string> = { pending: '等待', downloading: '下载', probing: '预检', transcoding: '转码', upload_queued: '待上传', uploading: '上传', copying: '复制', completed: '完成', failed: '失败', interrupted: '中断', skipped: '跳过' }
 
 function close() { emit('update:open', false) }
@@ -31,9 +33,16 @@ function close() { emit('update:open', false) }
           <div><small>尝试</small><b>#{{ file.attempt }}</b></div>
           <div><small>大小</small><b>{{ file.sourceSize == null ? '—' : `${file.sourceSize.toLocaleString()} B` }}</b></div>
         </div>
-        <p v-if="file?.lastError" class="file-detail-error">{{ file.lastError }}</p>
-        <ParameterDecisionPanel v-if="selectedVideo?.parameterDecision" :decision="selectedVideo.parameterDecision" />
-        <div v-else class="file-detail-empty">{{ file?.kind === 'companion' ? '伴随文件没有参数决策记录。' : '暂无参数决策记录。' }}</div>
+        <div class="file-detail-scroll">
+          <p v-if="file?.lastError" class="file-detail-error">{{ file.lastError }}</p>
+          <ParameterDecisionPanel v-if="selectedVideo?.parameterDecision" :decision="selectedVideo.parameterDecision" />
+          <div v-if="file?.kind === 'video'" class="ffmpeg-output">
+            <div class="ffmpeg-output-heading"><b>实际 FFmpeg 输出（stderr）</b><span v-if="ffmpegOutput">按文件筛选 · {{ ffmpegLogs.length }} 条</span></div>
+            <pre v-if="ffmpegOutput">{{ ffmpegOutput }}</pre>
+            <p v-else class="muted-copy">暂无捕获的 FFmpeg 输出。</p>
+          </div>
+          <div v-else class="file-detail-empty">{{ file?.kind === 'companion' ? '伴随文件没有参数决策记录。' : '暂无参数决策记录。' }}</div>
+        </div>
       </DialogContent>
     </DialogPortal>
   </DialogRoot>

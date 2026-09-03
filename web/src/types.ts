@@ -136,6 +136,7 @@ export interface Metrics {
 }
 
 export interface Snapshot { tasks: Task[]; system: SystemStatus; metrics: Metrics }
+export interface LogEntry { level: string; message: string; fileId: string | null; createdAt: string }
 export interface ScanSummary {
   scanToken: string
   videoCount: number

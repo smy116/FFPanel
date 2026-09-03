@@ -1,5 +1,5 @@
 import axios from 'axios'
-import type { ApiError, BrowseEntry, CompanionFile, ScanSummary, Snapshot, StorageLocation, Task, TaskFile } from './types'
+import type { ApiError, BrowseEntry, CompanionFile, LogEntry, ScanSummary, Snapshot, StorageLocation, Task, TaskFile } from './types'
 
 export const http = axios.create({ baseURL: '/api/v1', timeout: 30_000 })
 
@@ -19,7 +19,7 @@ export const api = {
   createTask: (payload: Record<string, unknown>) => http.post<Task>('/tasks', payload).then(({ data }) => data),
   files: (taskId: string, limit = 500) => http.get<{ items: TaskFile[] }>(`/tasks/${taskId}/files`, { params: { limit } }).then(({ data }) => data.items),
   companions: (taskId: string, limit = 500) => http.get<{ items: CompanionFile[] }>(`/tasks/${taskId}/companions`, { params: { limit } }).then(({ data }) => data.items),
-  logs: (taskId: string) => http.get<{ items: Array<{ level: string; message: string; fileId: string | null; createdAt: string }> }>(`/tasks/${taskId}/logs`).then(({ data }) => data.items),
+  logs: (taskId: string) => http.get<{ items: LogEntry[] }>(`/tasks/${taskId}/logs`).then(({ data }) => data.items),
   stop: (taskId: string) => http.post<Task>(`/tasks/${taskId}/stop`).then(({ data }) => data),
   retry: (taskId: string) => http.post<Task>(`/tasks/${taskId}/retry`).then(({ data }) => data),
   remove: (taskId: string) => http.delete(`/tasks/${taskId}`),

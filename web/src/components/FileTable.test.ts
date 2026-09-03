@@ -1,7 +1,7 @@
 import { shallowRef } from 'vue'
 import { flushPromises, mount } from '@vue/test-utils'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import type { CompanionFile, TaskFile } from '../types'
+import type { CompanionFile, LogEntry, TaskFile } from '../types'
 import FileTable from './FileTable.vue'
 
 const measureElement = vi.hoisted(() => vi.fn())
@@ -29,11 +29,13 @@ const companion: CompanionFile = {
   attempt: 1, sourceSize: 2048, finalOutputPath: null, lastError: null, version: 1, updatedAt: '',
 }
 
+const logs: LogEntry[] = [{ level: 'info', message: 'frame=120 fps=30.0 bitrate=1800k', fileId: 'file-1', createdAt: '' }]
+
 describe('file table details', () => {
   beforeEach(() => measureElement.mockClear())
 
   it('keeps the headers visible and opens file details in a modal', async () => {
-    const wrapper = mount(FileTable, { props: { files: [video], companions: [companion] } })
+    const wrapper = mount(FileTable, { props: { files: [video], companions: [companion], logs } })
     await flushPromises()
 
     expect(wrapper.find('.file-table-head').text()).toContain('文件类型状态尝试')
@@ -43,5 +45,8 @@ describe('file table details', () => {
     expect(document.body.textContent).toContain('文件详情')
     expect(document.body.textContent).toContain('源参数 Source')
     expect(document.body.textContent).toContain('实际参数 Effective')
+    expect(document.body.textContent).toContain('实际 FFmpeg 输出（stderr）')
+    expect(document.body.textContent).toContain('frame=120 fps=30.0 bitrate=1800k')
+    expect(document.querySelector('.file-detail-scroll .dialog-heading')).toBeNull()
   })
 })
