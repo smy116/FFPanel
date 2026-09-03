@@ -25,6 +25,9 @@ describe('new task wizard', () => {
     await next().trigger('click')
     expect(wrapper.text()).toContain('智能分辨率与码率')
     expect(wrapper.text()).toContain('Smart Bitrate Cap')
+    const rateControl = wrapper.findAll('label').find((label) => label.text().includes('码率控制模式'))!
+    expect((rateControl.find('select').element as HTMLSelectElement).value).toBe('vbr')
+    expect(rateControl.text()).toContain('CBR · 恒定码率')
   })
 
   it('enables automatic fallback by default', async () => {

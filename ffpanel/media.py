@@ -231,7 +231,7 @@ def decide_parameters(
         "scaleFilter": "vpp_rkrga" if rotation and requested.hardware_mode == "mpp_mpp" else "scale_rkrga" if needs_rga else "scale" if transform else None,
         "bitrateKbps": bitrate,
         "frameRate": requested.frame_rate,
-        "gop": requested.gop,
+        "rateControl": requested.rate_control,
         "audioCodec": {"copy": "copy", "aac": "aac", "drop": None}[requested.audio_strategy],
         "subtitleCodec": subtitle_codec,
     }
@@ -272,9 +272,13 @@ def build_ffmpeg_argv(
         if effective.get("normalizeSar"):
             video_filter += ",setsar=1"
         argv += ["-vf", video_filter]
-    argv += ["-c:v", effective["encoder"], "-b:v", f"{effective['bitrateKbps']}k", "-maxrate", f"{effective['bitrateKbps']}k", "-bufsize", f"{effective['bitrateKbps'] * 2}k", "-g", str(effective["gop"])]
+    bitrate = f"{effective['bitrateKbps']}k"
+    argv += ["-c:v", effective["encoder"], "-b:v", bitrate]
+    if effective["rateControl"] == "cbr":
+        argv += ["-minrate", bitrate]
+    argv += ["-maxrate", bitrate, "-bufsize", f"{effective['bitrateKbps'] * 2}k"]
     if effective["hardwareMode"] != "cpu_cpu":
-        argv += ["-rc_mode", "VBR"]
+        argv += ["-rc_mode", effective["rateControl"].upper()]
     if effective["frameRate"] != "source":
         argv += ["-r", effective["frameRate"]]
     argv += ["-c:a", effective["audioCodec"]] if effective.get("audioCodec") else ["-an"]

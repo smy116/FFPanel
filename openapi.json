@@ -2289,12 +2289,14 @@
             "title": "Framerate",
             "default": "source"
           },
-          "gop": {
-            "type": "integer",
-            "maximum": 600.0,
-            "minimum": 1.0,
-            "title": "Gop",
-            "default": 120
+          "rateControl": {
+            "type": "string",
+            "enum": [
+              "vbr",
+              "cbr"
+            ],
+            "title": "Ratecontrol",
+            "default": "vbr"
           },
           "audioStrategy": {
             "type": "string",

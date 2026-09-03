@@ -43,6 +43,7 @@ HardwareMode = Literal["mpp_mpp", "cpu_mpp", "cpu_cpu"]
 VideoCodec = Literal["h264", "hevc"]
 Container = Literal["mp4", "mkv"]
 FrameRate = Literal["source", "24", "25", "30", "50", "60"]
+RateControl = Literal["vbr", "cbr"]
 AudioStrategy = Literal["copy", "aac", "drop"]
 SubtitleStrategy = Literal["auto", "copy", "drop"]
 
@@ -56,7 +57,7 @@ class TranscodeParams(APIModel):
     bitrate_kbps: int = Field(default=2000, ge=100, le=100_000)
     smart_bitrate_cap: bool = True
     frame_rate: FrameRate = "source"
-    gop: int = Field(default=120, ge=1, le=600)
+    rate_control: RateControl = "vbr"
     audio_strategy: AudioStrategy = "copy"
     subtitle_strategy: SubtitleStrategy = "auto"
 

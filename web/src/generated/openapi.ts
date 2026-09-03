@@ -647,10 +647,11 @@ export interface components {
              */
             frameRate: "source" | "24" | "25" | "30" | "50" | "60";
             /**
-             * Gop
-             * @default 120
+             * Ratecontrol
+             * @default vbr
+             * @enum {string}
              */
-            gop: number;
+            rateControl: "vbr" | "cbr";
             /**
              * Audiostrategy
              * @default copy

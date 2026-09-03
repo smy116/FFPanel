@@ -38,7 +38,7 @@ export function registerTaskTool(): () => void {
         companionFilePolicy: 'subtitles', params: {
           hardwareMode: 'cpu_cpu', autoFallback: true, videoCodec: input.videoCodec || 'h264', container: input.container || 'mp4',
           height: input.height ?? 720, bitrateKbps: input.bitrateKbps ?? 2000, smartBitrateCap: true,
-          frameRate: 'source', gop: 120, audioStrategy: 'copy', subtitleStrategy: 'auto',
+          frameRate: 'source', rateControl: 'vbr', audioStrategy: 'copy', subtitleStrategy: 'auto',
         },
       })
       return { id: task.id, status: task.status, videoCount: task.totalFiles }

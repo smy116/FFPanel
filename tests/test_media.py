@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Literal
 
 import pytest
 
@@ -112,6 +113,27 @@ def test_full_hardware_rotation_uses_rga_vpp_without_autorotate() -> None:
     argv = build_ffmpeg_argv(Settings(), Path("input.mkv"), Path("output.mp4"), effective)
     assert "-noautorotate" in argv
     assert any("vpp_rkrga" in argument and "transpose=clock" in argument for argument in argv)
+
+
+@pytest.mark.parametrize(("rate_control", "expected"), [("vbr", "VBR"), ("cbr", "CBR")])
+def test_hardware_rate_control_is_passed_to_ffmpeg(
+    rate_control: Literal["vbr", "cbr"], expected: str
+) -> None:
+    effective, _ = decide_parameters(
+        source(), TranscodeParams(rate_control=rate_control), CAPABILITIES
+    )
+    argv = build_ffmpeg_argv(Settings(), Path("input.mkv"), Path("output.mp4"), effective)
+    assert argv[argv.index("-rc_mode") + 1] == expected
+
+
+def test_cpu_cbr_adds_minimum_bitrate_without_hardware_rate_control() -> None:
+    effective, _ = decide_parameters(
+        source(), TranscodeParams(hardware_mode="cpu_cpu", rate_control="cbr"), CAPABILITIES
+    )
+    argv = build_ffmpeg_argv(Settings(), Path("input.mkv"), Path("output.mp4"), effective)
+    assert argv[argv.index("-minrate") + 1] == "1400k"
+    assert "-rc_mode" not in argv
+    assert "-g" not in argv
 
 
 def test_gpu_selection_never_silently_falls_back() -> None:

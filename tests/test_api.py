@@ -21,7 +21,7 @@ def request_payload(media: Path, scan_token: str) -> dict:
         "params": {
             "hardwareMode": "cpu_cpu", "videoCodec": "h264", "container": "mp4",
             "height": 720, "bitrateKbps": 2000, "smartBitrateCap": True,
-            "frameRate": "source", "gop": 120, "audioStrategy": "copy", "subtitleStrategy": "auto",
+            "frameRate": "source", "rateControl": "vbr", "audioStrategy": "copy", "subtitleStrategy": "auto",
         },
     }
 
@@ -100,7 +100,7 @@ def test_startup_marks_active_work_interrupted(settings: Settings, tmp_path: Pat
             name="crashed", status=TaskStatus.RUNNING.value,
             source_json={"kind": "local", "path": str(tmp_path / "media" / "input")},
             destination_json={"kind": "local", "path": str(tmp_path / "media" / "output")},
-            requested_params_json={"hardwareMode": "cpu_cpu", "videoCodec": "h264", "container": "mp4", "height": 720, "bitrateKbps": 2000, "smartBitrateCap": True, "frameRate": "source", "gop": 120, "audioStrategy": "copy", "subtitleStrategy": "auto"},
+            requested_params_json={"hardwareMode": "cpu_cpu", "videoCodec": "h264", "container": "mp4", "height": 720, "bitrateKbps": 2000, "smartBitrateCap": True, "frameRate": "source", "rateControl": "vbr", "audioStrategy": "copy", "subtitleStrategy": "auto"},
             total_files=1,
         )
         task.files = [TaskFile(relative_path="movie.mkv", stage=FileStage.TRANSCODING.value)]
@@ -125,7 +125,7 @@ def test_retry_commits_valid_local_checkpoint(settings: Settings, tmp_path: Path
         task = Task(
             name="checkpoint", status=TaskStatus.INTERRUPTED.value,
             source_json={"kind": "local", "path": str(source)}, destination_json={"kind": "local", "path": str(destination)},
-            requested_params_json={"hardwareMode": "cpu_cpu", "videoCodec": "h264", "container": "mp4", "height": 720, "bitrateKbps": 2000, "smartBitrateCap": True, "frameRate": "source", "gop": 120, "audioStrategy": "copy", "subtitleStrategy": "auto"}, total_files=1,
+            requested_params_json={"hardwareMode": "cpu_cpu", "videoCodec": "h264", "container": "mp4", "height": 720, "bitrateKbps": 2000, "smartBitrateCap": True, "frameRate": "source", "rateControl": "vbr", "audioStrategy": "copy", "subtitleStrategy": "auto"}, total_files=1,
         )
         task.files = [TaskFile(relative_path="movie.mkv", stage=FileStage.INTERRUPTED.value, completed_artifact_path=str(artifact), final_output_path="movie.mp4", artifact_size=artifact.stat().st_size)]
         session.add(task); session.commit(); task_id = task.id

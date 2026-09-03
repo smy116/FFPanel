@@ -59,7 +59,7 @@ def _create_task(
                 "bitrateKbps": 2000,
                 "smartBitrateCap": True,
                 "frameRate": "source",
-                "gop": 120,
+                "rateControl": "vbr",
                 "audioStrategy": "copy",
                 "subtitleStrategy": "auto",
             },

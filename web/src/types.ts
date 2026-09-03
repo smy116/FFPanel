@@ -15,7 +15,7 @@ export interface TranscodeParams {
   bitrateKbps: number
   smartBitrateCap: boolean
   frameRate: 'source' | '24' | '25' | '30' | '50' | '60'
-  gop: number
+  rateControl: 'vbr' | 'cbr'
   audioStrategy: 'copy' | 'aac' | 'drop'
   subtitleStrategy: 'auto' | 'copy' | 'drop'
 }

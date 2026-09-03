@@ -23,7 +23,7 @@ const form = reactive({
   companionFilePolicy: 'subtitles' as CompanionFilePolicy,
   params: {
     hardwareMode: 'mpp_mpp', autoFallback: true, videoCodec: 'hevc', container: 'mp4', height: 720,
-    bitrateKbps: 2000, smartBitrateCap: true, frameRate: 'source', gop: 120,
+    bitrateKbps: 2000, smartBitrateCap: true, frameRate: 'source', rateControl: 'vbr',
     audioStrategy: 'copy', subtitleStrategy: 'auto',
   } as TranscodeParams,
 })
@@ -160,7 +160,7 @@ function formatBytes(value: number) {
         <div class="strategy-block"><div><label class="field-label">目标码率上限</label><div class="pill-group"><button v-for="rate in [1000, 2000, 4000, 6000]" :key="rate" :class="{ selected: !customBitrate && form.params.bitrateKbps === rate }" @click="customBitrate = false; form.params.bitrateKbps = rate">{{ rate }} kbps</button><button :class="{ selected: customBitrate }" @click="customBitrate = true">自定义</button></div><input v-if="customBitrate" v-model.number="form.params.bitrateKbps" type="number" min="100" max="100000" class="number-input" /></div>
           <label class="switch-card"><input v-model="form.params.smartBitrateCap" type="checkbox" /><span class="switch-ui"></span><span><b>Smart Bitrate Cap</b><small>源码率较低时自动采用源码率</small></span></label>
         </div>
-        <div class="advanced-grid"><label>帧率策略<select v-model="form.params.frameRate" class="select-input"><option value="source">保持源帧率</option><option v-for="fps in ['24','25','30','50','60']" :key="fps" :value="fps">{{ fps }} FPS</option></select></label><label>GOP 大小<input v-model.number="form.params.gop" class="number-input" type="number" min="1" max="600" /></label><label>音频策略<select v-model="form.params.audioStrategy" class="select-input"><option value="copy">复制音轨</option><option value="aac">转为 AAC</option><option value="drop">丢弃音频</option></select></label><label>字幕策略<select v-model="form.params.subtitleStrategy" class="select-input"><option value="auto">自动兼容</option><option value="copy">直接复制</option><option value="drop">丢弃字幕</option></select></label></div>
+        <div class="advanced-grid"><label>帧率策略<select v-model="form.params.frameRate" class="select-input"><option value="source">保持源帧率</option><option v-for="fps in ['24','25','30','50','60']" :key="fps" :value="fps">{{ fps }} FPS</option></select></label><label>码率控制模式<select v-model="form.params.rateControl" class="select-input"><option value="vbr">VBR · 可变码率</option><option value="cbr">CBR · 恒定码率</option></select></label><label>音频策略<select v-model="form.params.audioStrategy" class="select-input"><option value="copy">复制音轨</option><option value="aac">转为 AAC</option><option value="drop">丢弃音频</option></select></label><label>字幕策略<select v-model="form.params.subtitleStrategy" class="select-input"><option value="auto">自动兼容</option><option value="copy">直接复制</option><option value="drop">丢弃字幕</option></select></label></div>
       </template>
 
       <template v-else>
