@@ -2217,6 +2217,11 @@
             "title": "Hardwaremode",
             "default": "mpp_mpp"
           },
+          "autoFallback": {
+            "type": "boolean",
+            "title": "Autofallback",
+            "default": true
+          },
           "videoCodec": {
             "type": "string",
             "enum": [

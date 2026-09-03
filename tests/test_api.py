@@ -45,6 +45,7 @@ def test_create_task_runs_pipeline_and_preserves_companion(settings: Settings, t
         assert summary["companionCount"] == 1
         created = client.post("/api/v1/tasks", json=request_payload(media, summary["scanToken"]))
         assert created.status_code == 201, created.text
+        assert created.json()["requestedParams"]["autoFallback"] is True
         task_id = created.json()["id"]
         deadline = time.monotonic() + 4
         task = created.json()

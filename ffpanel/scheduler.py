@@ -35,13 +35,29 @@ from .models import (
     TaskStatus,
     utcnow,
 )
-from .schemas import StorageKind, StorageLocation, TranscodeParams
+from .schemas import HardwareMode, StorageKind, StorageLocation, TranscodeParams
 from .serialize import companion_dict, file_dict, task_dict
 from .storage import StorageError, StorageService
 
 ACTIVE_TASK_STATUSES = {TaskStatus.QUEUED.value, TaskStatus.RUNNING.value}
 TERMINAL_FILE_STAGES = {FileStage.COMPLETED.value, FileStage.FAILED.value, FileStage.SKIPPED.value}
 TERMINAL_COMPANION_STAGES = {CompanionStage.COMPLETED.value, CompanionStage.FAILED.value, CompanionStage.SKIPPED.value}
+HARDWARE_MODE_LABELS: dict[HardwareMode, str] = {
+    "mpp_mpp": "Rockchip MPP 硬件编解码",
+    "cpu_mpp": "CPU 软解 + MPP 编码",
+    "cpu_cpu": "CPU 软件编解码",
+}
+HARDWARE_FALLBACK_CHAINS: dict[HardwareMode, tuple[HardwareMode, ...]] = {
+    "mpp_mpp": ("mpp_mpp", "cpu_mpp", "cpu_cpu"),
+    "cpu_mpp": ("cpu_mpp", "cpu_cpu"),
+    "cpu_cpu": ("cpu_cpu",),
+}
+
+
+def transcode_mode_chain(params: TranscodeParams) -> tuple[HardwareMode, ...]:
+    if not params.auto_fallback:
+        return (params.hardware_mode,)
+    return HARDWARE_FALLBACK_CHAINS[params.hardware_mode]
 
 
 class Scheduler:
@@ -266,7 +282,6 @@ class Scheduler:
                 input_path = self.storage.local_path(source, relative if Path(source.path).is_dir() else "")
 
             source_params = await probe_media(self.settings, input_path)
-            effective, reasons = decide_parameters(source_params, params, self.capabilities)
             output_relative = str(PurePosixPath(relative).with_suffix(f".{params.container}"))
             if await self.storage.exists(destination, output_relative):
                 raise StorageError("output_conflict", f"目标文件已存在：{output_relative}")
@@ -280,35 +295,100 @@ class Scheduler:
                 temp_path = cache_root / "output" / Path(output_relative)
                 temp_path = temp_path.with_name(f".ffpanel-{temp_path.stem}-{item_id[:8]}.part{temp_path.suffix}")
                 temp_path.parent.mkdir(parents=True, exist_ok=True)
-            argv = build_ffmpeg_argv(self.settings, input_path, temp_path, effective)
-
-            with self.sessions() as session:
-                item = session.get(TaskFile, item_id)
-                if not item or item.task.stop_requested:
-                    return
-                item.stage = FileStage.TRANSCODING.value
-                item.source_params_json = source_params
-                item.effective_params_json = effective
-                item.decision_log_json = reasons
-                item.ffmpeg_argv_json = self._redact_argv(argv)
-                item.input_cache_path = str(input_path) if source.kind == StorageKind.RCLONE else None
-                item.temp_output_path = str(temp_path)
-                item.final_output_path = output_relative
-                item.capability_snapshot_id = self.capability_id
-                item.version += 1
-                session.commit()
-                await self._publish_file(item)
-
-            exit_code, stderr_tail = await self._run_ffmpeg(
-                task_id, item_id, argv, source_params.get("durationMs"), input_path, temp_path
-            )
-            if exit_code != 0:
-                suffix = f"：{stderr_tail}" if stderr_tail else ""
-                raise MediaError("ffmpeg_failed", f"FFmpeg 退出码 {exit_code}{suffix}")
-            if not temp_path.is_file() or temp_path.stat().st_size <= 0:
-                raise MediaError("output_invalid", "转码输出不存在或为空")
-            if not self.settings.mock_media:
-                await probe_media(self.settings, temp_path)
+            fallback_reasons: list[dict[str, str]] = []
+            failures: list[str] = []
+            modes = transcode_mode_chain(params)
+            for index, mode in enumerate(modes):
+                if self._task_stop_requested(task_id):
+                    raise MediaError("task_stopped", "任务已停止")
+                attempt_params = params.model_copy(update={"hardware_mode": mode})
+                attempt_decision_reasons: list[dict[str, str]] = []
+                await self._persist_transcode_attempt(
+                    item_id,
+                    source_params=source_params,
+                    effective=None,
+                    reasons=fallback_reasons,
+                    argv=None,
+                    input_path=input_path,
+                    input_is_cached=source.kind == StorageKind.RCLONE,
+                    temp_path=temp_path,
+                    output_relative=output_relative,
+                )
+                try:
+                    effective, attempt_decision_reasons = decide_parameters(
+                        source_params, attempt_params, self.capabilities
+                    )
+                    argv = build_ffmpeg_argv(self.settings, input_path, temp_path, effective)
+                    await self._persist_transcode_attempt(
+                        item_id,
+                        source_params=source_params,
+                        effective=effective,
+                        reasons=[*attempt_decision_reasons, *fallback_reasons],
+                        argv=argv,
+                        input_path=input_path,
+                        input_is_cached=source.kind == StorageKind.RCLONE,
+                        temp_path=temp_path,
+                        output_relative=output_relative,
+                    )
+                    exit_code, stderr_tail = await self._run_ffmpeg(
+                        task_id,
+                        item_id,
+                        argv,
+                        source_params.get("durationMs"),
+                        input_path,
+                        temp_path,
+                    )
+                    await self._set_transcode_exit_code(item_id, exit_code)
+                    if self._task_stop_requested(task_id):
+                        raise MediaError("task_stopped", "任务已停止")
+                    if exit_code != 0:
+                        suffix = f"：{stderr_tail}" if stderr_tail else ""
+                        raise MediaError("ffmpeg_failed", f"FFmpeg 退出码 {exit_code}{suffix}")
+                    if not temp_path.is_file() or temp_path.stat().st_size <= 0:
+                        raise MediaError("output_invalid", "转码输出不存在或为空")
+                    if not self.settings.mock_media:
+                        await probe_media(self.settings, temp_path)
+                    break
+                except asyncio.CancelledError:
+                    raise
+                except (MediaError, OSError) as exc:
+                    if self._task_stop_requested(task_id):
+                        raise MediaError("task_stopped", "任务已停止") from exc
+                    summary = self._summarize_transcode_error(exc)
+                    failures.append(f"{HARDWARE_MODE_LABELS[mode]}：{summary}")
+                    self._safe_unlink(temp_path)
+                    next_mode = modes[index + 1] if index + 1 < len(modes) else None
+                    if next_mode:
+                        reason = {
+                            "field": "hardwareMode",
+                            "code": "transcode_auto_fallback",
+                            "message": (
+                                f"{HARDWARE_MODE_LABELS[mode]}失败：{summary}；"
+                                f"自动退回到{HARDWARE_MODE_LABELS[next_mode]}"
+                            ),
+                        }
+                        fallback_reasons.append(reason)
+                        await self._record_transcode_failure(
+                            item_id, [*attempt_decision_reasons, *fallback_reasons]
+                        )
+                        await self.events.log(task_id, "warning", reason["message"], item_id)
+                        continue
+                    final_reason = {
+                        "field": "hardwareMode",
+                        "code": "transcode_attempt_failed",
+                        "message": f"{HARDWARE_MODE_LABELS[mode]}失败：{summary}",
+                    }
+                    fallback_reasons.append(final_reason)
+                    await self._record_transcode_failure(
+                        item_id, [*attempt_decision_reasons, *fallback_reasons]
+                    )
+                    if len(modes) > 1:
+                        joined = "；".join(failures)
+                        raise MediaError(
+                            "transcode_fallback_exhausted",
+                            f"所有转码模式均失败：{joined}",
+                        ) from exc
+                    raise
             artifact_size = temp_path.stat().st_size
             fingerprint = f"sha256:{self._sha256(temp_path)}"
 
@@ -367,6 +447,61 @@ class Scheduler:
         except Exception as exc:
             await self._fail_file(item_id, exc)
 
+    async def _persist_transcode_attempt(
+        self,
+        item_id: str,
+        *,
+        source_params: dict[str, Any],
+        effective: dict[str, Any] | None,
+        reasons: list[dict[str, str]],
+        argv: list[str] | None,
+        input_path: Path,
+        input_is_cached: bool,
+        temp_path: Path,
+        output_relative: str,
+    ) -> None:
+        with self.sessions() as session:
+            item = session.get(TaskFile, item_id)
+            if not item or item.task.stop_requested:
+                raise MediaError("task_stopped", "任务已停止")
+            item.stage = FileStage.TRANSCODING.value
+            item.source_params_json = source_params
+            item.effective_params_json = effective
+            item.decision_log_json = reasons
+            item.ffmpeg_argv_json = self._redact_argv(argv) if argv else None
+            item.input_cache_path = str(input_path) if input_is_cached else None
+            item.temp_output_path = str(temp_path)
+            item.final_output_path = output_relative
+            item.progress_json = None
+            item.last_error = None
+            item.last_exit_code = None
+            item.capability_snapshot_id = self.capability_id
+            item.version += 1
+            session.commit()
+            await self._publish_file(item)
+
+    async def _record_transcode_failure(
+        self, item_id: str, reasons: list[dict[str, str]]
+    ) -> None:
+        with self.sessions() as session:
+            item = session.get(TaskFile, item_id)
+            if not item:
+                return
+            item.decision_log_json = reasons
+            item.progress_json = None
+            item.version += 1
+            session.commit()
+            await self._publish_file(item)
+
+    async def _set_transcode_exit_code(self, item_id: str, exit_code: int) -> None:
+        with self.sessions() as session:
+            item = session.get(TaskFile, item_id)
+            if not item:
+                return
+            item.last_exit_code = exit_code
+            item.version += 1
+            session.commit()
+
     async def _run_ffmpeg(
         self,
         task_id: str,
@@ -423,6 +558,11 @@ class Scheduler:
         stderr_tail = await stderr_task
         self._active_transcode = None
         return return_code, stderr_tail
+
+    @staticmethod
+    def _summarize_transcode_error(exc: Exception) -> str:
+        message = " ".join(str(exc).split()) or exc.__class__.__name__
+        return message[-600:]
 
     async def _consume_stderr(self, process: asyncio.subprocess.Process, task_id: str, file_id: str) -> str:
         assert process.stderr is not None

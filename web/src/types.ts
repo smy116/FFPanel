@@ -8,6 +8,7 @@ export type StorageKind = 'local' | 'rclone'
 export interface StorageLocation { kind: StorageKind; path: string; remote?: string | null }
 export interface TranscodeParams {
   hardwareMode: HardwareMode
+  autoFallback: boolean
   videoCodec: 'h264' | 'hevc'
   container: 'mp4' | 'mkv'
   height: -1 | 360 | 480 | 720 | 1080 | 2160

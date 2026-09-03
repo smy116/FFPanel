@@ -606,6 +606,11 @@ export interface components {
              */
             hardwareMode: "mpp_mpp" | "cpu_mpp" | "cpu_cpu";
             /**
+             * Autofallback
+             * @default true
+             */
+            autoFallback: boolean;
+            /**
              * Videocodec
              * @default hevc
              * @enum {string}

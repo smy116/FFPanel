@@ -6,7 +6,7 @@ import type { EventEnvelope, Task } from '../types'
 const task = (version: number, status: Task['status'] = 'queued'): Task => ({
   id: 'task-1', name: 'Demo', status,
   source: { kind: 'local', path: '/media/in' }, destination: { kind: 'local', path: '/media/out' },
-  requestedParams: { hardwareMode: 'cpu_cpu', videoCodec: 'h264', container: 'mp4', height: 720, bitrateKbps: 2000, smartBitrateCap: true, frameRate: 'source', gop: 120, audioStrategy: 'copy', subtitleStrategy: 'auto' },
+  requestedParams: { hardwareMode: 'cpu_cpu', autoFallback: true, videoCodec: 'h264', container: 'mp4', height: 720, bitrateKbps: 2000, smartBitrateCap: true, frameRate: 'source', gop: 120, audioStrategy: 'copy', subtitleStrategy: 'auto' },
   companionFilePolicy: 'subtitles', totalFiles: 1, completedFiles: status === 'completed' ? 1 : 0,
   failedFiles: 0, skippedFiles: 0, companionTotal: 0, companionCompleted: 0, companionFailed: 0,
   percent: status === 'completed' ? 100 : 0, currentTranscodeFileId: null, currentUploadFileId: null,

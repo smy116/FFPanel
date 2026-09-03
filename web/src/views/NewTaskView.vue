@@ -22,7 +22,7 @@ const form = reactive({
   destination: { kind: 'local', path: '/media/encoded', remote: null } as StorageLocation,
   companionFilePolicy: 'subtitles' as CompanionFilePolicy,
   params: {
-    hardwareMode: 'mpp_mpp', videoCodec: 'hevc', container: 'mp4', height: 720,
+    hardwareMode: 'mpp_mpp', autoFallback: true, videoCodec: 'hevc', container: 'mp4', height: 720,
     bitrateKbps: 2000, smartBitrateCap: true, frameRate: 'source', gop: 120,
     audioStrategy: 'copy', subtitleStrategy: 'auto',
   } as TranscodeParams,
@@ -36,6 +36,17 @@ const sourceLabel = computed(() => formatLocation(form.source))
 const destinationLabel = computed(() => formatLocation(form.destination))
 const policyLabel = computed(() => ({ none: '不复制', subtitles: '仅复制字幕', all_non_video: '复制全部非视频文件' })[form.companionFilePolicy])
 const modeLabel = computed(() => ({ mpp_mpp: 'MPP 硬件解码 + 编码', cpu_mpp: 'CPU 解码 + MPP 编码', cpu_cpu: 'CPU 软件编解码' })[form.params.hardwareMode])
+const fallbackDescription = computed(() => ({
+  mpp_mpp: '失败后依次尝试 CPU 软解 + MPP 编码、CPU 软件编解码',
+  cpu_mpp: '失败后继续尝试 CPU 软件编解码',
+  cpu_cpu: '当前已是最终软件档位，不会继续退回',
+})[form.params.hardwareMode])
+const mppWarning = computed(() => {
+  if (form.params.hardwareMode === 'cpu_cpu') return 'MPP/RGA 当前不可用，当前 CPU 软件编解码方案不受影响。'
+  return form.params.autoFallback
+    ? 'MPP/RGA 当前不可用，将自动尝试可用的后续档位。'
+    : 'MPP/RGA 当前不可用，请开启自动退回或选择 CPU 软件编解码。'
+})
 let unregisterTool: () => void = () => undefined
 
 onMounted(async () => { await Promise.all([store.loadRemotes(), store.loadSnapshot()]); unregisterTool = registerTaskTool() })
@@ -57,7 +68,7 @@ function validate(current = step.value): boolean {
     else if ((form.source.kind === 'rclone' && !form.source.remote) || (form.destination.kind === 'rclone' && !form.destination.remote)) error.value = '远程存储必须选择 Remote。'
     else if (sourceLabel.value === destinationLabel.value) error.value = '输入和输出位置不能相同。'
   }
-  if (current === 2 && form.params.hardwareMode !== 'cpu_cpu' && !store.system.mppAvailable) error.value = '当前未检测到可用的 MPP/RGA 能力，请选择 CPU 软件编解码。'
+  if (current === 2 && form.params.hardwareMode !== 'cpu_cpu' && !store.system.mppAvailable && !form.params.autoFallback) error.value = '当前未检测到可用的 MPP/RGA 能力，请开启自动退回或选择 CPU 软件编解码。'
   if (current === 3 && (form.params.bitrateKbps < 100 || form.params.bitrateKbps > 100000)) error.value = '目标码率必须在 100–100000 kbps 之间。'
   return !error.value
 }
@@ -128,13 +139,14 @@ function formatBytes(value: number) {
       </template>
 
       <template v-else-if="step === 2">
-        <div class="section-title"><div class="icon-tile green"><Zap :size="20" /></div><div><h2>硬件加速与编解码方案</h2><p>GPU 模式能力不足时不会静默降级。</p></div></div>
-        <div v-if="!store.system.mppAvailable" class="inline-notice warning"><AlertTriangle :size="16" />MPP/RGA 当前不可用，仍可使用 CPU 软件编解码。</div>
+        <div class="section-title"><div class="icon-tile green"><Zap :size="20" /></div><div><h2>硬件加速与编解码方案</h2><p>可按显式策略逐级退回，每次实际选择都会记录在任务详情中。</p></div></div>
+        <div v-if="!store.system.mppAvailable" class="inline-notice warning"><AlertTriangle :size="16" />{{ mppWarning }}</div>
         <div class="profile-cards">
-          <button v-for="profile in [{ value: 'mpp_mpp', title: 'Rockchip MPP 硬件编解码', note: '最快 · 低功耗 · 优先零拷贝', icon: Zap }, { value: 'cpu_mpp', title: 'CPU 软解 + MPP 编码', note: '兼容特殊或旧视频源', icon: Cpu }, { value: 'cpu_cpu', title: 'CPU 软件编解码', note: '通用降级方案', icon: Settings2 }]" :key="profile.value" :disabled="profile.value !== 'cpu_cpu' && !store.system.mppAvailable" :class="{ selected: form.params.hardwareMode === profile.value }" @click="form.params.hardwareMode = profile.value as HardwareMode">
+          <button v-for="profile in [{ value: 'mpp_mpp', title: 'Rockchip MPP 硬件编解码', note: '最快 · 低功耗 · 优先零拷贝', icon: Zap }, { value: 'cpu_mpp', title: 'CPU 软解 + MPP 编码', note: '兼容特殊或旧视频源', icon: Cpu }, { value: 'cpu_cpu', title: 'CPU 软件编解码', note: '通用降级方案', icon: Settings2 }]" :key="profile.value" :disabled="profile.value !== 'cpu_cpu' && !store.system.mppAvailable && !form.params.autoFallback" :class="{ selected: form.params.hardwareMode === profile.value }" @click="form.params.hardwareMode = profile.value as HardwareMode">
             <component :is="profile.icon" :size="22" /><span><b>{{ profile.title }}</b><small>{{ profile.note }}</small></span><i v-if="profile.value === 'mpp_mpp'">推荐</i>
           </button>
         </div>
+        <label class="switch-card fallback-card"><input v-model="form.params.autoFallback" type="checkbox" /><span class="switch-ui"></span><span><b>转码自动退回</b><small>{{ fallbackDescription }}</small></span></label>
         <div class="choice-grid">
           <div><label class="field-label">输出视频编码</label><div class="segmented large"><button :class="{ selected: form.params.videoCodec === 'hevc' }" @click="form.params.videoCodec = 'hevc'">HEVC / H.265</button><button :class="{ selected: form.params.videoCodec === 'h264' }" @click="form.params.videoCodec = 'h264'">H.264 / AVC</button></div></div>
           <div><label class="field-label">输出封装格式</label><div class="segmented large"><button :class="{ selected: form.params.container === 'mp4' }" @click="form.params.container = 'mp4'">MP4 · 通用兼容</button><button :class="{ selected: form.params.container === 'mkv' }" @click="form.params.container = 'mkv'">MKV · 多流友好</button></div></div>
@@ -154,7 +166,7 @@ function formatBytes(value: number) {
       <template v-else>
         <div class="section-title"><div class="icon-tile"><ScanSearch :size="20" /></div><div><h2>预检确认与启动</h2><p>这里展示用户目标；单文件实际参数会在 ffprobe 后确定。</p></div></div>
         <label class="field-label">任务名称（可选）</label><input v-model="form.name" class="text-input" placeholder="不填写时使用输入目录名称" />
-        <div class="summary-grid"><div><small>输入位置</small><b>{{ sourceLabel }}</b></div><div><small>输出位置</small><b>{{ destinationLabel }}</b></div><div><small>伴随文件</small><b>{{ policyLabel }}</b></div><div><small>编解码模式</small><b>{{ modeLabel }}</b></div><div><small>目标格式</small><b>{{ form.params.videoCodec.toUpperCase() }} · {{ form.params.container.toUpperCase() }}</b></div><div><small>画质上限</small><b>{{ form.params.height === -1 ? '原始高度' : `${form.params.height}p` }} · {{ form.params.bitrateKbps }} kbps</b></div></div>
+        <div class="summary-grid"><div><small>输入位置</small><b>{{ sourceLabel }}</b></div><div><small>输出位置</small><b>{{ destinationLabel }}</b></div><div><small>伴随文件</small><b>{{ policyLabel }}</b></div><div><small>编解码模式</small><b>{{ modeLabel }}</b></div><div><small>自动退回</small><b>{{ form.params.autoFallback ? '开启 · 按档位逐级尝试' : '关闭 · 仅使用指定模式' }}</b></div><div><small>目标格式</small><b>{{ form.params.videoCodec.toUpperCase() }} · {{ form.params.container.toUpperCase() }}</b></div><div><small>画质上限</small><b>{{ form.params.height === -1 ? '原始高度' : `${form.params.height}p` }} · {{ form.params.bitrateKbps }} kbps</b></div></div>
         <div class="scan-panel">
           <button class="secondary-button scan-button" :disabled="busy" @click="runScan"><LoaderCircle v-if="busy" class="spin" :size="17" /><ScanSearch v-else :size="17" />{{ busy ? '正在扫描…' : '扫描并统计' }}</button>
           <div v-if="scan" class="scan-results"><div><strong>{{ scan.videoCount }}</strong><span>视频文件</span></div><div><strong>{{ scan.subtitleCount }}</strong><span>字幕文件</span></div><div><strong>{{ scan.otherCount }}</strong><span>其他文件</span></div><div><strong>{{ scan.companionCount }}</strong><span>将复制</span></div><div><strong>{{ formatBytes(scan.totalBytes) }}</strong><span>扫描体积</span></div></div>

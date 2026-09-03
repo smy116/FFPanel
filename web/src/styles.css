@@ -124,6 +124,7 @@ button, a { -webkit-tap-highlight-color: transparent; }
 .switch-card > span:last-child { display: flex; flex-direction: column; gap: 4px; }
 .switch-card b { font-size: 13px; }
 .switch-card small { color: #64748b; font-size: 11px; }
+.fallback-card { margin-top: 16px; }
 .advanced-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-top: 22px; }
 .advanced-grid label { color: #475569; font-size: 12px; font-weight: 700; }
 .advanced-grid .select-input, .advanced-grid .number-input { margin-top: 7px; }
@@ -229,7 +230,7 @@ button, a { -webkit-tap-highlight-color: transparent; }
 .decision-head, .decision-row { display: grid; grid-template-columns: 120px repeat(3,1fr); gap: 8px; padding: 8px 12px; font-size: 10px; }.decision-head { color: #64748b; background: #f8fafc; }.decision-row { border-top: 1px solid #f1f5f9; }.decision-row .effective { color: #1d4ed8; font-weight: 700; }
 .reason-list { display: flex; flex-wrap: wrap; gap: 6px; padding: 10px 12px; border-top: 1px solid #e2e8f0; }.reason-list span { padding: 3px 6px; border-radius: 5px; color: #1d4ed8; background: #dbeafe; font-size: 9px; }
 .argv { padding: 9px 12px; border-top: 1px solid #e2e8f0; font-size: 10px; }.argv code { display: block; overflow: auto; margin-top: 7px; padding: 8px; color: #cbd5e1; border-radius: 6px; background: #0f172a; white-space: nowrap; }
-.log-panel { margin-top: 10px; border: 1px solid #e2e8f0; border-radius: 9px; background: white; }.log-panel summary { padding: 10px 12px; color: #475569; font-size: 11px; font-weight: 700; cursor: pointer; }.log-panel > div { max-height: 220px; overflow: auto; padding: 7px 12px; color: #cbd5e1; background: #0f172a; }.log-panel p { display: flex; gap: 9px; margin: 3px 0; font: 10px/1.5 ui-monospace, monospace; }.log-panel time { color: #64748b; flex: none; }.log-panel .error { color: #fca5a5; }
+.log-panel { margin-top: 10px; border: 1px solid #e2e8f0; border-radius: 9px; background: white; }.log-panel summary { padding: 10px 12px; color: #475569; font-size: 11px; font-weight: 700; cursor: pointer; }.log-panel > div { max-height: 220px; overflow: auto; padding: 7px 12px; color: #cbd5e1; background: #0f172a; }.log-panel p { display: flex; gap: 9px; margin: 3px 0; font: 10px/1.5 ui-monospace, monospace; }.log-panel time { color: #64748b; flex: none; }.log-panel .warning { color: #fde68a; }.log-panel .error { color: #fca5a5; }
 .muted-copy { color: #94a3b8; font-size: 11px; }
 .metric-grid { display: grid; grid-template-columns: repeat(5,1fr); gap: 12px; margin-bottom: 18px; }
 .metric-grid article { display: grid; grid-template-columns: 30px 1fr; gap: 3px 10px; padding: 16px; border: 1px solid #e2e8f0; border-radius: 12px; background: white; }

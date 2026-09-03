@@ -36,7 +36,7 @@ export function registerTaskTool(): () => void {
         name: typeof input.name === 'string' ? input.name : undefined,
         source, destination: { kind: 'local', path: input.destinationPath }, scanToken: summary.scanToken,
         companionFilePolicy: 'subtitles', params: {
-          hardwareMode: 'cpu_cpu', videoCodec: input.videoCodec || 'h264', container: input.container || 'mp4',
+          hardwareMode: 'cpu_cpu', autoFallback: true, videoCodec: input.videoCodec || 'h264', container: input.container || 'mp4',
           height: input.height ?? 720, bitrateKbps: input.bitrateKbps ?? 2000, smartBitrateCap: true,
           frameRate: 'source', gop: 120, audioStrategy: 'copy', subtitleStrategy: 'auto',
         },

@@ -49,6 +49,7 @@ SubtitleStrategy = Literal["auto", "copy", "drop"]
 
 class TranscodeParams(APIModel):
     hardware_mode: HardwareMode = "mpp_mpp"
+    auto_fallback: bool = True
     video_codec: VideoCodec = "hevc"
     container: Container = "mp4"
     height: Literal[-1, 360, 480, 720, 1080, 2160] = 720
