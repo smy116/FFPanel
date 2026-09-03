@@ -74,7 +74,7 @@ button, a { -webkit-tap-highlight-color: transparent; }
 .input-action { display: flex; }
 .input-action input { width: 100%; min-width: 0; height: 42px; padding: 0 12px; border: 1px solid #cbd5e1; border-right: 0; border-radius: 8px 0 0 8px; color: #0f172a; background: white; font-size: 14px; outline: none; }
 .input-action input:focus { border-color: #3b82f6; box-shadow: inset 0 0 0 1px #3b82f6; }
-.input-action button { padding: 0 14px; border: 1px solid #cbd5e1; border-radius: 0 8px 8px 0; color: #334155; background: #f8fafc; font-size: 13px; font-weight: 650; cursor: pointer; }
+.input-action button { display: inline-grid; flex: 0 0 42px; width: 42px; padding: 0; place-items: center; border: 1px solid #cbd5e1; border-radius: 0 8px 8px 0; color: #334155; background: #f8fafc; cursor: pointer; }
 .divider { height: 1px; margin: 28px 0 23px; background: #e2e8f0; }
 .radio-cards { display: grid; grid-template-columns: repeat(3,1fr); gap: 12px; }
 .radio-cards label { position: relative; display: flex; align-items: flex-start; gap: 10px; min-height: 82px; padding: 15px; border: 1px solid #e2e8f0; border-radius: 11px; cursor: pointer; }

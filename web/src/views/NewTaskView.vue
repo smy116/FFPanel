@@ -113,7 +113,7 @@ function formatBytes(value: number) {
             </div>
             <template v-if="form[target].kind === 'rclone'"><label class="field-label">Remote</label><select v-model="form[target].remote" class="select-input"><option v-for="remote in store.remotes" :key="remote" :value="remote">{{ remote }}:</option></select></template>
             <label class="field-label">{{ target === 'source' ? '源文件或目录' : '目标根目录' }}</label>
-            <div class="input-action"><input v-model="form[target].path" :placeholder="form[target].kind === 'local' ? '/media/...' : '目录/子目录'" /><button @click="openBrowser(target)">浏览</button></div>
+            <div class="input-action"><input v-model="form[target].path" :placeholder="form[target].kind === 'local' ? '/media/...' : '目录/子目录'" /><button :aria-label="target === 'source' ? '浏览源文件或目录' : '浏览目标根目录'" title="浏览" @click="openBrowser(target)"><FolderOpen :size="18" /></button></div>
           </article>
           <div class="flow-arrow"><ArrowRight :size="20" /></div>
         </div>

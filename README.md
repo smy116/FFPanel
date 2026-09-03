@@ -18,7 +18,7 @@ FFPanel 是面向 RK3588 的批量视频转码工作台。它把本地目录和�
 
 ## RK3588 部署
 
-1. 将 `.env.example` 复制为 `.env`，按需启用认证。
+1. 按需编辑 `docker-compose.yml` 中的 `environment` 配置；启用认证时填写用户名和密码。
 2. 把已有 `rclone.conf` 放到宿主机 `./config/rclone/rclone.conf`。
 3. 确认宿主机 vendor/BSP 内核提供 Compose 中列出的 MPP/RGA 设备节点。
 4. 执行 `docker compose -f docker-compose.yml up -d --build`。
@@ -30,7 +30,7 @@ FFPanel 是面向 RK3588 的批量视频转码工作台。它把本地目录和�
 
 ## 配置
 
-所有变量以 `FFPANEL_` 开头。关键配置见 [.env.example](.env.example)：本地根目录、数据库与缓存目录、rclone 配置、工具路径、认证和日志级别。
+所有变量以 `FFPANEL_` 开头，生产容器配置直接写在 `docker-compose.yml` 的 `environment` 区块中。`.env.example` 仅作为本地非 Compose 运行时的字段参考。
 
 `FFPANEL_LOCAL_ROOTS` 是逗号分隔的容器内路径白名单。WebUI 不能浏览或处理白名单之外的本地路径。FFPanel 只读取已有 rclone remote，不管理凭据或 OAuth。
 

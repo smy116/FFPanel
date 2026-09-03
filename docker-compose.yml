@@ -5,9 +5,22 @@ services:
       dockerfile: Dockerfile
     image: ffpanel:1.0.0-rk3588
     restart: unless-stopped
-    env_file: .env
+    environment:
+      FFPANEL_HOST: "0.0.0.0"
+      FFPANEL_PORT: "8090"
+      FFPANEL_CONFIG_DIR: "/config"
+      FFPANEL_CACHE_DIR: "/cache"
+      FFPANEL_LOCAL_ROOTS: "/media"
+      FFPANEL_RCLONE_CONFIG: "/config/rclone/rclone.conf"
+      FFPANEL_FFMPEG_PATH: "ffmpeg"
+      FFPANEL_FFPROBE_PATH: "ffprobe"
+      FFPANEL_RCLONE_PATH: "rclone"
+      FFPANEL_AUTH_ENABLED: "false"
+      FFPANEL_AUTH_USERNAME: ""
+      FFPANEL_AUTH_PASSWORD: ""
+      FFPANEL_LOG_LEVEL: "INFO"
     ports:
-      - "8080:8080"
+      - "8090:8090"
     volumes:
       - ./config:/config
       - ./cache:/cache
@@ -17,7 +30,5 @@ services:
       - /dev/dma_heap:/dev/dma_heap
       - /dev/rga:/dev/rga
       - /dev/mpp_service:/dev/mpp_service
-    group_add:
-      - video
-      - render
+    privileged: true
     stop_grace_period: 20s
