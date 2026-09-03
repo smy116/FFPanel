@@ -25,7 +25,7 @@ ENV PKG_CONFIG_PATH=/opt/media/usr/lib/pkgconfig:/opt/media/usr/lib/aarch64-linu
 RUN git clone https://github.com/nyanmisaka/ffmpeg-rockchip.git ffmpeg && cd ffmpeg && git checkout "$FFMPEG_ROCKCHIP_REF" && \
     ./configure --prefix=/usr --enable-gpl --enable-version3 --enable-libdrm --enable-rkmpp --enable-rkrga \
       --enable-libx264 --enable-libx265 --extra-cflags=-I/opt/media/usr/include \
-      --extra-ldflags=-L/opt/media/usr/lib && \
+      --extra-ldflags="-L/opt/media/usr/lib -L/opt/media/usr/lib/aarch64-linux-gnu" && \
     make -j"$(nproc)" && make DESTDIR=/opt/media install
 
 FROM python:3.12-slim-bookworm AS python-build
