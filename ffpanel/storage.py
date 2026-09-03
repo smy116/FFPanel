@@ -18,7 +18,7 @@ from .schemas import CompanionFilePolicy, StorageKind, StorageLocation
 
 VIDEO_EXTENSIONS = {
     ".mp4", ".mkv", ".mov", ".avi", ".m4v", ".ts", ".m2ts", ".webm",
-    ".flv", ".wmv", ".mpg", ".mpeg", ".vob", ".ogv",
+    ".flv", ".wmv", ".mpg", ".mpeg", ".vob", ".ogv", ".rm", ".rmvb", ".3gp",
 }
 SUBTITLE_EXTENSIONS = {".srt", ".ass", ".ssa", ".vtt", ".sub", ".idx"}
 

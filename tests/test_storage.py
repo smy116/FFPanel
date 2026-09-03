@@ -8,6 +8,12 @@ from ffpanel.schemas import StorageLocation
 from ffpanel.storage import ScanRegistry, StorageError, StorageService, companion_selected
 
 
+@pytest.mark.parametrize("extension", [".rm", ".rmvb", ".3gp"])
+def test_additional_video_extensions_are_recognized(extension: str) -> None:
+    entry = StorageService._entry(f"clip{extension}", 0, None)
+    assert entry.category == "video"
+
+
 @pytest.mark.asyncio
 async def test_local_scan_and_companion_policies(settings, tmp_path: Path) -> None:
     root = tmp_path / "media" / "library"
