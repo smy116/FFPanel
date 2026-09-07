@@ -1,14 +1,31 @@
+# Intel 加速模式（QSV/VAAPI，AMD64）
 services:
   ffpanel:
-    extends:
-      file: docker-compose.common.yml
-      service: ffpanel
+    image: ghcr.io/smy116/ffpanel:latest
+    restart: unless-stopped
     platform: linux/amd64
-    build:
-      context: .
-      dockerfile: Dockerfile.amd64
-    devices:
-      - /dev/dri:/dev/dri
     environment:
+      FFPANEL_HOST: "0.0.0.0"
+      FFPANEL_PORT: "8090"
+      FFPANEL_CONFIG_DIR: "/config"
+      FFPANEL_CACHE_DIR: "/cache"
+      FFPANEL_LOCAL_ROOTS: "/media"
+      FFPANEL_RCLONE_CONFIG: "/config/rclone/rclone.conf"
+      FFPANEL_FFMPEG_PATH: "ffmpeg"
+      FFPANEL_FFPROBE_PATH: "ffprobe"
+      FFPANEL_RCLONE_PATH: "rclone"
+      FFPANEL_AUTH_ENABLED: "${FFPANEL_AUTH_ENABLED:-false}"
+      FFPANEL_AUTH_USERNAME: "${FFPANEL_AUTH_USERNAME:-}"
+      FFPANEL_AUTH_PASSWORD: "${FFPANEL_AUTH_PASSWORD:-}"
+      FFPANEL_LOG_LEVEL: "INFO"
       FFPANEL_INTEL_RENDER_DEVICE: "${FFPANEL_INTEL_RENDER_DEVICE:-/dev/dri/renderD128}"
       LIBVA_DRIVER_NAME: iHD
+    devices:
+      - /dev/dri:/dev/dri
+    ports:
+      - "8090:8090"
+    volumes:
+      - ./config:/config
+      - ./cache:/cache
+      - ./media:/media
+    stop_grace_period: 20s

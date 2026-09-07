@@ -45,24 +45,29 @@ FFPanel 将本地目录与已有的 [rclone](https://rclone.org/) remote 统一�
 
 正式输出先写入 `.part` 临时文件，成功并完成文件大小检查后再提交到目标路径；已有目标文件不会被静默覆盖。容器或进程异常退出后，正在运行的任务会标记为 `interrupted`，可从文件级安全检查点 Retry。Retry 不是从 FFmpeg 中间帧继续编码。
 
-## 快速开始：RK3588 Docker 部署
+## 快速开始：Docker 部署
 
 ### 环境要求
 
-- Linux ARM64 主机，推荐 Rockchip RK3588 设备及厂商 BSP/内核。
+- Linux 主机（纯 CPU 模式 AMD64/ARM64 通用；Rockchip 模式需 ARM64，NVIDIA/Intel 模式需 AMD64）。
 - Docker Engine 与 Docker Compose Plugin。
-- 宿主机能够提供 `/dev/dri`、`/dev/dma_heap`、`/dev/rga`、`/dev/mpp_service` 等设备节点。
+- 硬件加速模式还需要对应设备：Rockchip 提供 `/dev/dri`、`/dev/dma_heap`、`/dev/rga`、`/dev/mpp_service` 等设备节点；NVIDIA 需宿主机驱动与 Container Toolkit；Intel 需 `/dev/dri` 与内核驱动。
 - 如果需要远程存储，准备好宿主机侧的 `rclone.conf`。
 
-默认 Dockerfile 保留 `linux/arm64` 构建；`Dockerfile.amd64` 提供 NVIDIA/Intel/CPU 支持。首次构建会编译 MPP、RGA 和 ffmpeg-rockchip，耗时可能较长；不依赖宿主机安装 FFmpeg。
+镜像统一使用 GitHub Actions 构建并发布的多架构镜像 `ghcr.io/smy116/ffpanel`（默认 `latest`，可用 `FFPANEL_IMAGE` 固定版本），无需本地构建。仓库提供四个自包含的 Compose 入口，分别对应不同加速模式；Compose 会按宿主机架构自动拉取匹配的 `linux/arm64` 或 `linux/amd64` 镜像：
 
-仓库的 GitHub Actions 会在 push 和 Pull Request 时分别构建与验证 `linux/arm64`、`linux/amd64` 镜像，并在默认分支或 `v*` 版本标签上合并发布多架构镜像。
+| 模式 | 启动命令 | 说明 |
+| --- | --- | --- |
+| 纯 CPU | `docker compose up -d` | 默认 `docker-compose.yml`，无 GPU 要求，AMD64/ARM64 通用 |
+| RK3588 / Rockchip | `docker compose -f docker-compose.rockchip.yml up -d` | MPP/RGA，ARM64 |
+| NVIDIA | `docker compose -f docker-compose.nvidia.yml up -d` | NVIDIA 驱动与 Container Toolkit，AMD64 |
+| Intel | `docker compose -f docker-compose.intel.yml up -d` | QSV/VAAPI，AMD64 |
 
-Intel、NVIDIA 和 CPU 的独立 Compose 入口、驱动要求与严格验证命令见 [GPU 部署与验证](docs/GPU部署与验证.md)。
+各模式的设备要求与严格验证命令见 [GPU 部署与验证](docs/GPU部署与验证.md)。
 
 ### 启动
 
-在 RK3588 主机上执行：
+在 RK3588 主机上执行（Rockchip 模式使用 `docker-compose.rockchip.yml`）：
 
 ```bash
 git clone https://github.com/smy116/FFPanel.git
@@ -72,13 +77,13 @@ mkdir -p config/rclone cache media
 # 可选：启用 rclone remote 时复制已有配置
 cp /path/to/rclone.conf config/rclone/rclone.conf
 
-docker compose up -d --build
-docker compose ps
+docker compose -f docker-compose.rockchip.yml up -d
+docker compose -f docker-compose.rockchip.yml ps
 ```
 
 打开 `http://<设备地址>:8090`。容器内的本地媒体根目录是 `/media`，因此向导中应填写例如 `/media/incoming` 和 `/media/encoded`。
 
-常用运维命令：
+常用运维命令（使用非默认 Compose 文件时需带 `-f`，如 `docker compose -f docker-compose.rockchip.yml logs -f ffpanel`）：
 
 ```bash
 docker compose logs -f ffpanel
@@ -88,7 +93,7 @@ docker compose down
 
 ### 启用认证
 
-编辑 `docker-compose.common.yml` 中的 `environment`，或使用同名环境变量，再启动或重启容器：
+编辑所选 Compose 文件中的 `environment`（如 `docker-compose.yml`），或使用同名环境变量，再启动或重启容器：
 
 ```yaml
 FFPANEL_AUTH_ENABLED: "true"
@@ -128,7 +133,7 @@ cd ..
 
 非容器运行时需要自行安装并确保 `ffmpeg`、`ffprobe` 在 `PATH` 中；使用 rclone remote 时还需要安装 `rclone` 并设置配置文件路径。
 
-Intel、NVIDIA 和 CPU 的独立 Compose 入口、驱动要求与严格验证命令见 [GPU 部署与验证](docs/GPU部署与验证.md)。
+纯 CPU、Rockchip、NVIDIA 和 Intel 四种模式的 Compose 入口、驱动要求与严格验证命令见 [GPU 部署与验证](docs/GPU部署与验证.md)。
 
 ### 启动开发服务
 
@@ -161,7 +166,7 @@ npm run dev
 
 ## 配置参考
 
-所有配置项均使用 `FFPANEL_` 前缀，可通过环境变量或仓库根目录的 `.env` 设置。Compose 部署使用 `docker-compose.common.yml` 的公共配置及所选硬件配置；设备变量见 [GPU 部署与验证](docs/GPU部署与验证.md)。
+所有配置项均使用 `FFPANEL_` 前缀，可通过环境变量或仓库根目录的 `.env` 设置。四个自包含的 Compose 文件（默认 `docker-compose.yml` 纯 CPU，另见 Rockchip/NVIDIA/Intel）各自携带公共配置；设备变量见 [GPU 部署与验证](docs/GPU部署与验证.md)。
 
 | 配置项 | 默认值 | 说明 |
 | --- | --- | --- |

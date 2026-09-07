@@ -7,7 +7,6 @@ import { hardwareGroups, statusLabel } from "./hardware";
 
 const store = useTasksStore();
 const groups = computed(() => hardwareGroups(store.system));
-const hardwareBrand = computed(() => groups.value.map(group => group.label).join(' · '));
 onMounted(() => {
   void Promise.all([store.loadSnapshot(), store.loadRemotes()]);
   store.connectEvents();
@@ -21,7 +20,6 @@ onMounted(() => {
         <RouterLink to="/new" class="brand" aria-label="FFPanel 首页">
           <span class="brand-mark"><Cpu :size="21" /></span>
           <span>FFPanel</span>
-          <span class="hardware-badge">{{ hardwareBrand }}</span>
         </RouterLink>
         <nav class="nav-tabs" aria-label="主导航">
           <RouterLink to="/new"><Plus :size="17" />新建转码任务</RouterLink>
