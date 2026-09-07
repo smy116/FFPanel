@@ -28,6 +28,9 @@ case "$arch" in
     for decoder in h264_cuvid hevc_cuvid h264_qsv hevc_qsv; do printf '%s\n' "$decoders" | grep -w "$decoder"; done
     if printf '%s\n' "$encoders" "$decoders" "$filters" | grep -E 'rkmpp|rkrga'; then exit 1; fi
     test -f /usr/lib/x86_64-linux-gnu/dri/iHD_drv_video.so
+    # oneVPL's modern runtime excludes legacy Jasper Lake/N5105. The oneVPL
+    # dispatcher falls back to this Media SDK implementation on those devices.
+    test -f /usr/lib/x86_64-linux-gnu/libmfxhw64.so.1
     if ldd /usr/lib/x86_64-linux-gnu/dri/iHD_drv_video.so | grep -q 'not found'; then exit 1; fi
     ;;
   *) exit 1 ;;

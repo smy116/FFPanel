@@ -130,6 +130,8 @@ async def test_runtime_probe_isolated_failures(monkeypatch, gpu_snapshot, outcom
     assert result["nvidia"].features["encode_hevc"] == (outcome == "success")
     assert result["nvidia"].features["encode_h264"] == (outcome in {"success", "hevc"})
     assert any("hwdownload" in " ".join(argv) for argv in calls)
+    assert all("128x72" not in " ".join(argv) for argv in calls)
+    assert any("scale_vaapi=w=256:h=144" in " ".join(argv) for argv in calls)
 
 
 async def test_compiled_features_without_device_never_ready(monkeypatch):

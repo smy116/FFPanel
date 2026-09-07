@@ -5,8 +5,9 @@ from alembic.script import ScriptDirectory
 from sqlalchemy import inspect, text
 
 from alembic import command
+from ffpanel import models  # noqa: F401
 from ffpanel.config import get_settings
-from ffpanel.db import create_db_engine
+from ffpanel.db import Base, create_db_engine
 
 PROJECT_ROOT = Path(__file__).parents[1]
 
@@ -39,14 +40,17 @@ def test_new_database_migration_creates_current_schema(
     engine = create_db_engine(f"sqlite:///{db_path.as_posix()}")
     try:
         inspector = inspect(engine)
-        assert set(inspector.get_table_names()) == {
-            "alembic_version",
-            "companion_files",
-            "runtime_capabilities",
-            "task_attempts",
-            "task_files",
-            "tasks",
-        }
+        assert set(inspector.get_table_names()) == {"alembic_version", *Base.metadata.tables}
+        for table_name, table in Base.metadata.tables.items():
+            database_columns = {
+                column["name"]: column["nullable"]
+                for column in inspector.get_columns(table_name)
+            }
+            model_columns = {column.name: column.nullable for column in table.columns}
+            assert database_columns == model_columns
+            assert {index["name"] for index in inspector.get_indexes(table_name)} == {
+                index.name for index in table.indexes
+            }
         task_file_columns = {column["name"] for column in inspector.get_columns("task_files")}
         capability_columns = {
             column["name"] for column in inspector.get_columns("runtime_capabilities")
@@ -74,6 +78,7 @@ def test_initial_migration_downgrades_to_an_empty_schema(tmp_path: Path, monkeyp
     try:
         assert inspect(engine).get_table_names() == ["alembic_version"]
         with engine.connect() as connection:
-            assert connection.execute(text("SELECT COUNT(*) FROM alembic_version")).scalar_one() == 0
+            count = connection.execute(text("SELECT COUNT(*) FROM alembic_version")).scalar_one()
+            assert count == 0
     finally:
         engine.dispose()

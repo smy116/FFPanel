@@ -37,7 +37,7 @@ ARG RCLONE_VERSION=1.75.0
 RUN test "$TARGETARCH" = amd64 && \
     sed -i 's/Components: main$/Components: main non-free/' /etc/apt/sources.list.d/debian.sources && \
     apt-get update && apt-get install -y --no-install-recommends \
-      ca-certificates curl libdrm2 libva2 libva-drm2 libva-x11-2 libvpl2 libmfx-gen1.2 \
+      ca-certificates curl libdrm2 libva2 libva-drm2 libva-x11-2 libvpl2 libmfx-gen1.2 libmfx1 \
       intel-media-va-driver-non-free libx264-164 libx265-199 unzip && \
     curl -fsSLO "https://downloads.rclone.org/v${RCLONE_VERSION}/rclone-v${RCLONE_VERSION}-linux-amd64.zip" && \
     unzip "rclone-v${RCLONE_VERSION}-linux-amd64.zip" && \

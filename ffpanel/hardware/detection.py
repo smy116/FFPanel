@@ -14,6 +14,11 @@ from .gpu import GpuBackend
 from .registry import HardwareRegistry
 from .types import BackendCapabilities, MediaError, VideoPlan, VideoSettings
 
+# Keep probe frames above the minimum dimensions reported by supported hardware
+# encoders. In particular, Jasper Lake HEVC rejects the old 128x72 output.
+_PROBE_INPUT_SIZE = (320, 180)
+_PROBE_OUTPUT_SIZE = (256, 144)
+
 
 async def capture(argv: list[str], timeout: float) -> str:
     process = await asyncio.create_subprocess_exec(
@@ -85,10 +90,14 @@ async def probe_runtime(settings: Settings, registry: HardwareRegistry,
 
         check = partial(check_runtime, settings, caps, backend.label)
 
+        input_size = f"{_PROBE_INPUT_SIZE[0]}x{_PROBE_INPUT_SIZE[1]}"
+        output_width, output_height = _PROBE_OUTPUT_SIZE
         if not await check("initialize", backend.device_args(device) + [
-            "-f", "lavfi", "-i", "color=size=128x72:rate=1", "-frames:v", "1", "-f", "null", "-"]):
+            "-f", "lavfi", "-i", f"color=size={input_size}:rate=1",
+            "-frames:v", "1", "-f", "null", "-"]):
             continue
-        video_settings = VideoSettings(128, 72, True, 0, False, 1000, "source", "vbr")
+        video_settings = VideoSettings(
+            output_width, output_height, True, 0, False, 1000, "source", "vbr")
         with tempfile.TemporaryDirectory(prefix="ffpanel-probe-") as directory:
             for codec in ("h264", "hevc"):
                 encoder = f"{codec}_{backend.suffix}"
@@ -98,12 +107,12 @@ async def probe_runtime(settings: Settings, registry: HardwareRegistry,
                     plan = VideoPlan(backend.profiles()[1], encoder, video_settings, "scale", device, "nv12")
                     video_args = backend.build_video_args(plan)
                     await check(f"encode_{codec}", list(video_args.before_input) + [
-                        "-f", "lavfi", "-i", "testsrc2=size=256x144:rate=1"] + list(video_args.after_input) + [
+                        "-f", "lavfi", "-i", f"testsrc2=size={input_size}:rate=1"] + list(video_args.after_input) + [
                         "-frames:v", "2", "-f", "null", "-"])
                 sample = str(Path(directory) / f"{codec}.mkv")
                 try:
                     await capture([settings.ffmpeg_path, "-nostdin", "-hide_banner", "-loglevel", "error",
-                                   "-f", "lavfi", "-i", "testsrc2=size=256x144:rate=1", "-frames:v", "2",
+                                   "-f", "lavfi", "-i", f"testsrc2=size={input_size}:rate=1", "-frames:v", "2",
                                    "-c:v", "libx264" if codec == "h264" else "libx265",
                                    "-threads", "1", "-y", sample], settings.hardware_probe_timeout_seconds)
                 except (OSError, MediaError, TimeoutError) as exc:
@@ -117,7 +126,10 @@ async def probe_runtime(settings: Settings, registry: HardwareRegistry,
                 if await check(f"decode_{codec}", args):
                     features["decode"] = True
                     vf_index = args.index("-vf") + 1
-                    args[vf_index] = f"scale_{backend.hwaccel}=w=128:h=72:format=nv12,hwdownload,format=nv12"
+                    args[vf_index] = (
+                        f"scale_{backend.hwaccel}=w={output_width}:h={output_height}:format=nv12,"
+                        "hwdownload,format=nv12"
+                    )
                     if await check(f"scale_{codec}", args):
                         features["scale"] = True
     return result
