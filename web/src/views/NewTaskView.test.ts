@@ -38,7 +38,33 @@ describe('new task wizard', () => {
     useTasksStore().mergeEvent({ id: 'gpu-update', type: 'system.status', version: 1, updatedAt: '', taskId: null, fileId: null, payload: { hardwareProfiles: profiles } })
     await flushPromises()
     expect(selected()).toContain('CPU 软件编解码')
+    useTasksStore().mergeEvent({ id: 'gpu-update-2', type: 'system.status', version: 2, updatedAt: '', taskId: null, fileId: null, payload: { hardwareProfiles: profiles.map(profile => profile.id === 'cpu_cpu' ? { ...profile, available: false, codecs: [] } : profile) } })
+    await flushPromises()
+    expect(selected()).toContain('Intel QSV')
     wrapper.unmount()
+  })
+
+  it('shows only usable Rockchip and CPU profiles on RK3588', async () => {
+    const profiles: HardwareProfile[] = [
+      { id: 'mpp_mpp', label: 'Rockchip MPP 硬件编解码', backendId: 'rockchip', decodeMode: 'hardware', detected: true, available: true, codecs: ['h264', 'hevc'], fallback: 'cpu_mpp' },
+      { id: 'cpu_mpp', label: 'CPU 软解 + MPP 编码', backendId: 'rockchip', decodeMode: 'software', detected: true, available: true, codecs: ['h264', 'hevc'], fallback: 'cpu_cpu' },
+      { id: 'qsv_qsv', label: 'Intel QSV 硬件编解码', backendId: 'qsv', decodeMode: 'hardware', detected: true, available: false, codecs: [], reason: '无法读取 Intel GPU 厂商信息' },
+      { id: 'vaapi_vaapi', label: 'Intel VAAPI 硬件编解码', backendId: 'vaapi', decodeMode: 'hardware', detected: true, available: false, codecs: [], reason: '设备初始化失败' },
+      { id: 'nvdec_nvenc', label: 'NVIDIA NVDEC + NVENC', backendId: 'nvidia', decodeMode: 'hardware', detected: false, available: false, codecs: [], reason: '未检测到 NVIDIA 设备' },
+      { id: 'cpu_cpu', label: 'CPU 软件编解码', backendId: 'cpu', decodeMode: 'software', detected: true, available: true, codecs: ['h264', 'hevc'] },
+    ]
+    const original = await api.snapshot()
+    vi.mocked(api.snapshot).mockResolvedValueOnce({ ...original, system: { ...original.system, hardwareProfiles: profiles } })
+    const router = createRouter({ history: createMemoryHistory(), routes: [{ path: '/new', component: NewTaskView }] })
+    await router.push('/new'); await router.isReady()
+    const wrapper = mount(NewTaskView, { global: { plugins: [router] } })
+    await flushPromises()
+    await wrapper.findAll('button').find(button => button.text().includes('下一步'))!.trigger('click')
+    expect(wrapper.text()).toContain('Rockchip MPP 硬件编解码')
+    expect(wrapper.text()).toContain('CPU 软件编解码')
+    expect(wrapper.text()).not.toContain('Intel QSV')
+    expect(wrapper.text()).not.toContain('Intel VAAPI')
+    expect(wrapper.text()).not.toContain('NVIDIA NVDEC')
   })
 
   it('keeps form state while moving through the four-step flow', async () => {
@@ -68,19 +94,35 @@ describe('new task wizard', () => {
     expect(fallback.text()).toContain('CPU 软解 + MPP 编码')
   })
 
-  it('allows an unavailable MPP start only while fallback is enabled', async () => {
+  it('hides unavailable MPP profiles even while fallback is enabled', async () => {
     vi.mocked(api.snapshot).mockResolvedValueOnce({ tasks: [], metrics: { queuedTasks: 0, completedTasks: 0, completedVideos: 0, sourceBytes: 0, outputBytes: 0 }, system: { ffmpegVersion: 'test', ffprobeAvailable: true, rcloneAvailable: false, mppAvailable: false, rgaAvailable: false, encoders: [], decoders: [], filters: [], devices: {}, error: null, transcodeSlot: 0, uploadSlot: 0, uploadQueued: 0 } })
     const router = createRouter({ history: createMemoryHistory(), routes: [{ path: '/new', component: NewTaskView }, { path: '/tasks', component: { template: '<div />' } }] })
     await router.push('/new'); await router.isReady()
     const wrapper = mount(NewTaskView, { global: { plugins: [router] } })
     await flushPromises()
     await wrapper.findAll('button').find((button) => button.text().includes('下一步'))!.trigger('click')
-    const mpp = wrapper.findAll('button').find((button) => button.text().includes('Rockchip MPP'))!
-    expect(mpp.attributes('disabled')).toBeUndefined()
-    const fallback = wrapper.findAll('label').find((label) => label.text().includes('转码自动退回'))!
-    await fallback.find('input').setValue(false)
-    expect(mpp.attributes('disabled')).toBeDefined()
-    expect(wrapper.text()).toContain('请开启自动退回或选择 CPU 软件编解码')
+    expect(wrapper.text()).not.toContain('Rockchip MPP')
+    expect(wrapper.text()).not.toContain('CPU 软解 + MPP')
+    expect(wrapper.text()).toContain('CPU 软件编解码')
+  })
+
+  it('shows an empty state and blocks progress when no profile supports the target codec', async () => {
+    const unavailable: HardwareProfile[] = [
+      { id: 'cpu_cpu', label: 'CPU 软件编解码', backendId: 'cpu', decodeMode: 'software', detected: true, available: false, codecs: [] },
+      { id: 'qsv_qsv', label: 'Intel QSV', backendId: 'qsv', decodeMode: 'hardware', detected: true, available: false, codecs: [] },
+    ]
+    const original = await api.snapshot()
+    vi.mocked(api.snapshot).mockResolvedValueOnce({ ...original, system: { ...original.system, hardwareProfiles: unavailable } })
+    const router = createRouter({ history: createMemoryHistory(), routes: [{ path: '/new', component: NewTaskView }] })
+    await router.push('/new'); await router.isReady()
+    const wrapper = mount(NewTaskView, { global: { plugins: [router] } })
+    await flushPromises()
+    await wrapper.findAll('button').find(button => button.text().includes('下一步'))!.trigger('click')
+    expect(wrapper.text()).toContain('当前没有支持 HEVC 的可用编解码方案')
+    expect(wrapper.find('.profile-cards').findAll('button')).toHaveLength(0)
+    await wrapper.findAll('button').find(button => button.text().includes('下一步'))!.trigger('click')
+    expect(wrapper.text()).toContain('当前没有可用于 HEVC 的编解码方案')
+    expect(wrapper.text()).not.toContain('智能分辨率与码率')
   })
 
   it('submits the fallback choice with the task parameters', async () => {

@@ -31,21 +31,32 @@ describe('hardware presentation', () => {
   it('combines Intel APIs and preserves unavailable diagnostics with mixed GPUs', () => {
     const groups = hardwareGroups({ ...system, hardwareBackends: [backend('cpu'), backend('nvidia'),
       { ...backend('qsv', 'unavailable'), errors: { initialize: 'driver missing' } }, backend('vaapi')] })
-    expect(groups.map(group => group.label)).toEqual(['NVENC', 'Intel QSV/VAAPI'])
+    expect(groups.map(group => group.label)).toEqual(['Rockchip MPP', 'Intel QSV/VAAPI', 'NVIDIA NVENC'])
     expect(groups[1]?.status).toBe('partial')
     expect(groups[1]?.details).toContain('driver missing')
   })
-  it('does not show compiled GPU support without a detected device', () => {
-    expect(hardwareGroups({ ...system, hardwareBackends: [backend('cpu'), { ...backend('nvidia', 'unavailable'), detected: false }] }).map(group => group.id)).toEqual(['cpu'])
+  it('keeps undetected hardware visible as unavailable and omits CPU', () => {
+    const groups = hardwareGroups({ ...system, hardwareBackends: [backend('cpu'), { ...backend('nvidia', 'unavailable'), detected: false }] })
+    expect(groups.map(group => group.id)).toEqual(['rockchip', 'intel', 'nvidia'])
+    expect(groups[2]?.status).toBe('unavailable')
   })
   it('does not leave failed detection in Detecting state', () => {
-    expect(hardwareGroups({ ...system, ffmpegVersion: null, error: 'ffmpeg missing' })[0]?.status).toBe('unavailable')
-    expect(hardwareGroups({ ...system, ffmpegVersion: null })[0]?.status).toBe('detecting')
+    expect(hardwareGroups({ ...system, ffmpegVersion: null, error: 'ffmpeg missing' }).map(group => group.status)).toEqual(['unavailable', 'unavailable', 'unavailable'])
+    expect(hardwareGroups({ ...system, ffmpegVersion: null }).map(group => group.status)).toEqual(['detecting', 'detecting', 'detecting'])
   })
   it('preserves MPP and RGA partial states', () => {
     const group = hardwareGroups({ ...system, mppAvailable: true })[0]
-    expect(group?.label).toBe('MPP')
+    expect(group?.label).toBe('Rockchip MPP')
     expect(group?.status).toBe('partial')
     expect(group?.details).toContain('RGA · Unavailable')
+  })
+
+  it('reports ready Rockchip and unavailable Intel and NVIDIA for a legacy RK3588 snapshot', () => {
+    const groups = hardwareGroups({ ...system, mppAvailable: true, rgaAvailable: true })
+    expect(groups.map(group => group.status)).toEqual(['ready', 'unavailable', 'unavailable'])
+  })
+
+  it('returns no recommendation when the selected codec has no usable profile', () => {
+    expect(recommendedMode(profiles.map(profile => ({ ...profile, available: false })), 'hevc')).toBeNull()
   })
 })

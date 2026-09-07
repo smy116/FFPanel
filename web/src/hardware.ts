@@ -23,9 +23,9 @@ export function hardwareProfiles(system: SystemStatus): HardwareProfile[] {
   }))
 }
 
-export function recommendedMode(profiles: HardwareProfile[], codec: TranscodeParams['videoCodec']): HardwareMode {
+export function recommendedMode(profiles: HardwareProfile[], codec: TranscodeParams['videoCodec']): HardwareMode | null {
   const order: HardwareMode[] = ['nvdec_nvenc', 'cpu_nvenc', 'qsv_qsv', 'cpu_qsv', 'vaapi_vaapi', 'cpu_vaapi', 'mpp_mpp', 'cpu_mpp', 'cpu_cpu']
-  return order.find((mode) => profiles.some((profile) => profile.id === mode && profile.available && profile.codecs.includes(codec))) || 'cpu_cpu'
+  return order.find((mode) => profiles.some((profile) => profile.id === mode && profile.available && profile.codecs.includes(codec))) || null
 }
 
 export function fallbackDescription(mode: HardwareMode, profiles: HardwareProfile[]): string {
@@ -43,26 +43,55 @@ export function fallbackDescription(mode: HardwareMode, profiles: HardwareProfil
 export interface HardwareGroup { id: string; label: string; status: HardwareBackend['status']; details: string[] }
 const stateLabels = { detecting: 'Detecting', ready: 'Ready', partial: 'Partial', unavailable: 'Unavailable' }
 export function statusLabel(status: HardwareBackend['status']) { return stateLabels[status] }
+
+const hardwareGroupDefinitions = [
+  { id: 'rockchip', label: 'Rockchip MPP', backendIds: ['rockchip'] },
+  { id: 'intel', label: 'Intel QSV/VAAPI', backendIds: ['qsv', 'vaapi'] },
+  { id: 'nvidia', label: 'NVIDIA NVENC', backendIds: ['nvidia'] },
+] as const
+
+function combinedStatus(backends: HardwareBackend[]): HardwareBackend['status'] {
+  const statuses = backends.map((backend) => backend.status)
+  if (statuses.every((status) => status === 'ready')) return 'ready'
+  if (statuses.every((status) => status === 'unavailable')) return 'unavailable'
+  if (statuses.every((status) => status === 'detecting')) return 'detecting'
+  return 'partial'
+}
+
+function backendDetails(backend: HardwareBackend): string[] {
+  const details = [`${backend.label} · ${statusLabel(backend.status)}${backend.device ? ` · ${backend.device}` : ''}`]
+  const featureLabels: Record<string, string> = { mpp: 'MPP', rga: 'RGA', decode: backend.id === 'nvidia' ? 'NVDEC' : '硬件解码', encode_h264: 'H.264 编码', encode_hevc: 'HEVC 编码', scale: '硬件缩放' }
+  for (const [key, label] of Object.entries(featureLabels)) {
+    if (key in backend.features) details.push(`${label} · ${backend.features[key] ? 'Ready' : 'Unavailable'}`)
+  }
+  return details.concat(Object.values(backend.errors))
+}
+
 export function hardwareGroups(system: SystemStatus): HardwareGroup[] {
   const backends = system.hardwareBackends
+  const detecting = !system.ffmpegVersion && !system.error
   if (!backends?.length) {
-    if (!system.ffmpegVersion && !system.error) return [{ id: 'cpu', label: '硬件', status: 'detecting', details: ['正在检测硬件能力'] }]
-    if (system.mppAvailable || system.rgaAvailable) return [{ id: 'rockchip', label: 'MPP', status: system.mppAvailable && system.rgaAvailable ? 'ready' : 'partial', details: [`MPP · ${system.mppAvailable ? 'Ready' : 'Unavailable'}`, `RGA · ${system.rgaAvailable ? 'Ready' : 'Unavailable'}`] }]
-    return [{ id: 'cpu', label: 'CPU', status: system.ffmpegVersion ? 'ready' : 'unavailable', details: [system.error || 'CPU 软件编解码'] }]
+    const rockchipStatus: HardwareBackend['status'] = detecting ? 'detecting'
+      : system.mppAvailable && system.rgaAvailable ? 'ready'
+        : system.mppAvailable || system.rgaAvailable ? 'partial' : 'unavailable'
+    return hardwareGroupDefinitions.map((definition) => ({
+      id: definition.id,
+      label: definition.label,
+      status: definition.id === 'rockchip' ? rockchipStatus : detecting ? 'detecting' : 'unavailable',
+      details: definition.id === 'rockchip'
+        ? [`MPP · ${detecting ? 'Detecting' : system.mppAvailable ? 'Ready' : 'Unavailable'}`, `RGA · ${detecting ? 'Detecting' : system.rgaAvailable ? 'Ready' : 'Unavailable'}`]
+        : [detecting ? '正在检测硬件能力' : `${definition.label} · Unavailable`],
+    }))
   }
-  const visible = backends.filter((backend) => backend.detected && backend.id !== 'cpu')
-  if (!visible.length) visible.push(...backends.filter((backend) => backend.id === 'cpu'))
-  const groups = new Map<string, HardwareGroup>()
-  for (const backend of visible) {
-    const group = groups.get(backend.group) || { id: backend.group, label: backend.group === 'intel' ? 'Intel QSV/VAAPI' : backend.label, status: backend.status, details: [] }
-    if (group.status !== backend.status) group.status = 'partial'
-    group.details.push(`${backend.label} · ${statusLabel(backend.status)}${backend.device ? ` · ${backend.device}` : ''}`)
-    const featureLabels: Record<string, string> = { mpp: 'MPP', rga: 'RGA', decode: backend.id === 'nvidia' ? 'NVDEC' : '硬件解码', encode_h264: 'H.264 编码', encode_hevc: 'HEVC 编码', scale: '硬件缩放' }
-    for (const [key, label] of Object.entries(featureLabels)) {
-      if (key in backend.features) group.details.push(`${label} · ${backend.features[key] ? 'Ready' : 'Unavailable'}`)
+  return hardwareGroupDefinitions.map((definition) => {
+    const matches = backends.filter((backend) => definition.backendIds.some((id) => id === backend.id))
+    return {
+      id: definition.id,
+      label: definition.label,
+      status: matches.length ? combinedStatus(matches) : detecting ? 'detecting' : 'unavailable',
+      details: matches.length
+        ? matches.flatMap(backendDetails)
+        : [detecting ? '正在检测硬件能力' : `${definition.label} · Unavailable`],
     }
-    group.details.push(...Object.values(backend.errors))
-    groups.set(backend.group, group)
-  }
-  return [...groups.values()]
+  })
 }

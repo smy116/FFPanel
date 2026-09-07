@@ -39,18 +39,24 @@ const destinationLabel = computed(() => formatLocation(form.destination))
 const policyLabel = computed(() => ({ none: '不复制', subtitles: '仅复制字幕', all_non_video: '复制全部非视频文件' })[form.companionFilePolicy])
 const modeChosen = ref(false)
 const profiles = computed(() => hardwareProfiles(store.system))
-const visibleProfiles = computed(() => profiles.value.filter((profile) => profile.detected || profile.id === 'cpu_cpu' || profile.id === form.params.hardwareMode))
+const visibleProfiles = computed(() => profiles.value.filter(usable))
 const recommendation = computed(() => recommendedMode(profiles.value, form.params.videoCodec))
 const modeLabel = computed(() => hardwareModeLabel(form.params.hardwareMode, profiles.value))
 const fallbackDescription = computed(() => describeFallback(form.params.hardwareMode, profiles.value))
 function usable(profile: HardwareProfile) { return profile.available && profile.codecs.includes(form.params.videoCodec) }
 const selectedAvailable = computed(() => profiles.value.some((profile) => profile.id === form.params.hardwareMode && usable(profile)))
 const hardwareWarning = computed(() => {
-  if (selectedAvailable.value && !visibleProfiles.value.some((profile) => !usable(profile))) return ''
-  return form.params.autoFallback ? '部分硬件方案或目标编码当前不可用，将按所选回退链尝试后续方案。' : '部分硬件方案或目标编码当前不可用，请开启自动退回或选择 CPU 软件编解码。'
+  if (visibleProfiles.value.length) return ''
+  return `当前没有支持 ${form.params.videoCodec.toUpperCase()} 的可用编解码方案，请检查 FFmpeg 与硬件能力。`
 })
 function selectMode(mode: HardwareMode) { modeChosen.value = true; form.params.hardwareMode = mode }
-watch(recommendation, (mode) => { if (!modeChosen.value) form.params.hardwareMode = mode }, { immediate: true })
+watch([recommendation, profiles, () => form.params.videoCodec], ([mode]) => {
+  if (!mode) return
+  if (!modeChosen.value || !selectedAvailable.value) {
+    if (!selectedAvailable.value) modeChosen.value = false
+    form.params.hardwareMode = mode
+  }
+}, { immediate: true, deep: true })
 let unregisterTool: () => void = () => undefined
 
 onMounted(async () => { await Promise.all([store.loadRemotes(), store.loadSnapshot()]); unregisterTool = registerTaskTool() })
@@ -72,7 +78,7 @@ function validate(current = step.value): boolean {
     else if ((form.source.kind === 'rclone' && !form.source.remote) || (form.destination.kind === 'rclone' && !form.destination.remote)) error.value = '远程存储必须选择 Remote。'
     else if (sourceLabel.value === destinationLabel.value) error.value = '输入和输出位置不能相同。'
   }
-  if (current === 2 && !selectedAvailable.value && !form.params.autoFallback) error.value = '所选方案不支持当前目标编码或设备不可用，请开启自动退回或选择 CPU 软件编解码。'
+  if (current === 2 && !selectedAvailable.value) error.value = `当前没有可用于 ${form.params.videoCodec.toUpperCase()} 的编解码方案，请检查 FFmpeg 与硬件能力。`
   if (current === 3 && (form.params.bitrateKbps < 100 || form.params.bitrateKbps > 100000)) error.value = '目标码率必须在 100–100000 kbps 之间。'
   return !error.value
 }
@@ -147,11 +153,11 @@ function formatBytes(value: number) {
         <div class="section-title"><div class="icon-tile green"><Zap :size="20" /></div><div><h2>硬件加速与编解码方案</h2><p>可按显式策略逐级退回，每次实际选择都会记录在任务详情中。</p></div></div>
         <div v-if="hardwareWarning" class="inline-notice warning"><AlertTriangle :size="16" />{{ hardwareWarning }}</div>
         <div class="profile-cards">
-          <button v-for="profile in visibleProfiles" :key="profile.id" :disabled="!usable(profile) && !form.params.autoFallback" :class="{ selected: form.params.hardwareMode === profile.id }" @click="selectMode(profile.id)">
-            <component :is="profile.id === 'cpu_cpu' ? Settings2 : profile.decodeMode === 'hardware' ? Zap : Cpu" :size="22" /><span><b>{{ profile.label }}</b><small>{{ profile.reason || (usable(profile) ? `支持 ${profile.codecs.map(codec => codec.toUpperCase()).join(' / ')}` : '当前目标编码不可用') }}</small></span><i v-if="profile.id === recommendation">推荐</i>
+          <button v-for="profile in visibleProfiles" :key="profile.id" :class="{ selected: form.params.hardwareMode === profile.id }" @click="selectMode(profile.id)">
+            <component :is="profile.id === 'cpu_cpu' ? Settings2 : profile.decodeMode === 'hardware' ? Zap : Cpu" :size="22" /><span><b>{{ profile.label }}</b><small>支持 {{ profile.codecs.map(codec => codec.toUpperCase()).join(' / ') }}</small></span><i v-if="profile.id === recommendation">推荐</i>
           </button>
         </div>
-        <label class="switch-card fallback-card"><input v-model="form.params.autoFallback" type="checkbox" /><span class="switch-ui"></span><span><b>转码自动退回</b><small>{{ fallbackDescription }}</small></span></label>
+        <label v-if="visibleProfiles.length" class="switch-card fallback-card"><input v-model="form.params.autoFallback" type="checkbox" /><span class="switch-ui"></span><span><b>转码自动退回</b><small>{{ fallbackDescription }}</small></span></label>
         <div class="choice-grid">
           <div><label class="field-label">输出视频编码</label><div class="segmented large"><button :class="{ selected: form.params.videoCodec === 'hevc' }" @click="form.params.videoCodec = 'hevc'">HEVC / H.265</button><button :class="{ selected: form.params.videoCodec === 'h264' }" @click="form.params.videoCodec = 'h264'">H.264 / AVC</button></div></div>
           <div><label class="field-label">输出封装格式</label><div class="segmented large"><button :class="{ selected: form.params.container === 'mp4' }" @click="form.params.container = 'mp4'">MP4 · 通用兼容</button><button :class="{ selected: form.params.container === 'mkv' }" @click="form.params.container = 'mkv'">MKV · 多流友好</button></div></div>
