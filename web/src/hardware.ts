@@ -40,7 +40,12 @@ export function fallbackDescription(mode: HardwareMode, profiles: HardwareProfil
   return labels.length ? `失败后依次尝试 ${labels.join('、')}` : '当前已是最终软件档位，不会继续退回'
 }
 
-export interface HardwareGroup { id: string; label: string; status: HardwareBackend['status']; details: string[] }
+export interface HardwareGroup {
+  id: string
+  label: string
+  status: HardwareBackend['status']
+  detailSections: string[][]
+}
 const stateLabels = { detecting: 'Detecting', ready: 'Ready', partial: 'Partial', unavailable: 'Unavailable' }
 export function statusLabel(status: HardwareBackend['status']) { return stateLabels[status] }
 
@@ -78,9 +83,9 @@ export function hardwareGroups(system: SystemStatus): HardwareGroup[] {
       id: definition.id,
       label: definition.label,
       status: definition.id === 'rockchip' ? rockchipStatus : detecting ? 'detecting' : 'unavailable',
-      details: definition.id === 'rockchip'
+      detailSections: [definition.id === 'rockchip'
         ? [`MPP · ${detecting ? 'Detecting' : system.mppAvailable ? 'Ready' : 'Unavailable'}`, `RGA · ${detecting ? 'Detecting' : system.rgaAvailable ? 'Ready' : 'Unavailable'}`]
-        : [detecting ? '正在检测硬件能力' : `${definition.label} · Unavailable`],
+        : [detecting ? '正在检测硬件能力' : `${definition.label} · Unavailable`]],
     }))
   }
   return hardwareGroupDefinitions.map((definition) => {
@@ -89,9 +94,9 @@ export function hardwareGroups(system: SystemStatus): HardwareGroup[] {
       id: definition.id,
       label: definition.label,
       status: matches.length ? combinedStatus(matches) : detecting ? 'detecting' : 'unavailable',
-      details: matches.length
-        ? matches.flatMap(backendDetails)
-        : [detecting ? '正在检测硬件能力' : `${definition.label} · Unavailable`],
+      detailSections: matches.length
+        ? matches.map(backendDetails)
+        : [[detecting ? '正在检测硬件能力' : `${definition.label} · Unavailable`]],
     }
   })
 }

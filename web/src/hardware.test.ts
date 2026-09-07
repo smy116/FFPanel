@@ -33,7 +33,10 @@ describe('hardware presentation', () => {
       { ...backend('qsv', 'unavailable'), errors: { initialize: 'driver missing' } }, backend('vaapi')] })
     expect(groups.map(group => group.label)).toEqual(['Rockchip MPP', 'Intel QSV/VAAPI', 'NVIDIA NVENC'])
     expect(groups[1]?.status).toBe('partial')
-    expect(groups[1]?.details).toContain('driver missing')
+    expect(groups[1]?.detailSections).toHaveLength(2)
+    expect(groups[1]?.detailSections[0]?.[0]).toContain('qsv')
+    expect(groups[1]?.detailSections[1]?.[0]).toContain('vaapi')
+    expect(groups[1]?.detailSections.flat()).toContain('driver missing')
   })
   it('keeps undetected hardware visible as unavailable and omits CPU', () => {
     const groups = hardwareGroups({ ...system, hardwareBackends: [backend('cpu'), { ...backend('nvidia', 'unavailable'), detected: false }] })
@@ -48,7 +51,7 @@ describe('hardware presentation', () => {
     const group = hardwareGroups({ ...system, mppAvailable: true })[0]
     expect(group?.label).toBe('Rockchip MPP')
     expect(group?.status).toBe('partial')
-    expect(group?.details).toContain('RGA · Unavailable')
+    expect(group?.detailSections.flat()).toContain('RGA · Unavailable')
   })
 
   it('reports ready Rockchip and unavailable Intel and NVIDIA for a legacy RK3588 snapshot', () => {

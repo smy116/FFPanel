@@ -41,7 +41,11 @@ onMounted(() => {
     <footer class="statusbar">
       <details v-for="group in groups" :key="group.id" class="hardware-status">
         <summary><span class="status-dot" :class="{ muted: group.status !== 'ready' }"></span>{{ group.label }} · {{ statusLabel(group.status) }}</summary>
-        <div class="hardware-status-details"><p v-for="(detail, index) in group.details" :key="index">{{ detail }}</p></div>
+        <div class="hardware-status-details">
+          <section v-for="(section, sectionIndex) in group.detailSections" :key="sectionIndex" class="hardware-status-section">
+            <p v-for="(detail, detailIndex) in section" :key="detailIndex">{{ detail }}</p>
+          </section>
+        </div>
       </details>
       <div class="status-remotes">Rclone · {{ store.remotes.length }} Remotes</div>
       <div class="status-version">FFPanel v1.0.0</div>
