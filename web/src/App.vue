@@ -47,7 +47,13 @@ onMounted(() => {
           </section>
         </div>
       </details>
-      <div class="status-remotes">Rclone · {{ store.remotes.length }} Remotes</div>
+      <details class="hardware-status status-remotes">
+        <summary>Rclone · {{ store.remotes.length }} Remotes</summary>
+        <div class="hardware-status-details remote-status-details">
+          <p v-for="remote in store.remotes" :key="remote">{{ remote }}:</p>
+          <p v-if="!store.remotes.length">未配置 Rclone Remote</p>
+        </div>
+      </details>
       <div class="status-version">FFPanel v1.0.0</div>
     </footer>
   </div>

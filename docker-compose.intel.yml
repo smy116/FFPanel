@@ -1,6 +1,7 @@
 # Intel 加速模式（QSV/VAAPI，AMD64）
 services:
   ffpanel:
+    container_name: ffpanel
     image: ghcr.io/smy116/ffpanel:latest
     restart: unless-stopped
     platform: linux/amd64

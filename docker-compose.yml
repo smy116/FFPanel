@@ -1,6 +1,7 @@
 # 纯 CPU 模式（默认入口）
 services:
   ffpanel:
+    container_name: ffpanel
     image: ghcr.io/smy116/ffpanel:latest
     restart: unless-stopped
     environment:
