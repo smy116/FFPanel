@@ -18,6 +18,8 @@ FFPanel 将本地目录与已有的 [rclone](https://rclone.org/) remote 统一�
 - 固定一个 FFmpeg 转码槽位和一个传输槽位；远程输出上传时可与下一文件转码流水线并行。
 - SQLite 任务历史、启动恢复、文件级检查点、Retry、Stop、Delete，以及最近 300 条诊断日志。
 - REST Snapshot + SSE 增量状态；可选 HTTP Basic Auth 同时保护 WebUI 与 API。
+- 文件详情自动加载全部分页，并实时更新文件、伴随文件与最近日志；重连后重新同步。
+- 监测转码、传输和状态广播循环；任一循环异常退出时，`/healthz` 返回 HTTP 503。
 
 ## 工作流与架构
 

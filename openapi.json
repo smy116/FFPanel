@@ -1055,6 +1055,9 @@
                 }
               }
             }
+          },
+          "503": {
+            "description": "后台调度器不可用"
           }
         }
       }
@@ -1597,6 +1600,17 @@
       },
       "RuntimeStatusResponse": {
         "properties": {
+          "schedulerHealthy": {
+            "type": "boolean",
+            "title": "Schedulerhealthy"
+          },
+          "schedulerWorkers": {
+            "additionalProperties": {
+              "type": "boolean"
+            },
+            "type": "object",
+            "title": "Schedulerworkers"
+          },
           "ffmpegVersion": {
             "anyOf": [
               {
@@ -1686,6 +1700,8 @@
         },
         "type": "object",
         "required": [
+          "schedulerHealthy",
+          "schedulerWorkers",
           "ffprobeAvailable",
           "rcloneAvailable",
           "mppAvailable",

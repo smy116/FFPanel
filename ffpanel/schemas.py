@@ -213,6 +213,8 @@ class TaskResponse(APIModel):
 
 
 class RuntimeStatusResponse(APIModel):
+    scheduler_healthy: bool
+    scheduler_workers: dict[str, bool]
     ffmpeg_version: str | None = None
     ffprobe_available: bool
     rclone_available: bool

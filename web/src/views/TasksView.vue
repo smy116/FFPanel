@@ -1,17 +1,13 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 import { Activity, AlertTriangle, CheckCircle2, ChevronDown, ChevronUp, CircleStop, Clock3, FileClock, Gauge, HardDriveDownload, LoaderCircle, RotateCcw, Trash2, UploadCloud, Zap } from 'lucide-vue-next'
-import { api } from '../api'
 import ConfirmDialog from '../components/ConfirmDialog.vue'
 import FileTable from '../components/FileTable.vue'
 import { useTasksStore } from '../stores/tasks'
-import type { CompanionFile, LogEntry, Task, TaskFile, TaskStatus } from '../types'
+import type { Task, TaskStatus } from '../types'
 
 const store = useTasksStore()
 const expandedId = ref<string | null>(null)
-const files = ref<Record<string, TaskFile[]>>({})
-const companions = ref<Record<string, CompanionFile[]>>({})
-const logs = ref<Record<string, LogEntry[]>>({})
 const dialog = ref<{ type: 'retry' | 'delete'; task: Task } | null>(null)
 const busyId = ref('')
 const actionError = ref('')
@@ -29,12 +25,7 @@ onMounted(() => { void store.loadSnapshot(); store.connectEvents() })
 async function toggleDetails(task: Task) {
   if (expandedId.value === task.id) { expandedId.value = null; return }
   expandedId.value = task.id
-  if (!files.value[task.id]) {
-    try {
-      const [fileItems, companionItems, logItems] = await Promise.all([api.files(task.id), api.companions(task.id), api.logs(task.id)])
-      files.value[task.id] = fileItems; companions.value[task.id] = companionItems; logs.value[task.id] = logItems
-    } catch (reason) { actionError.value = reason instanceof Error ? reason.message : '详情加载失败' }
-  }
+  await store.loadDetails(task.id)
 }
 async function stop(task: Task) {
   busyId.value = task.id; actionError.value = ''
@@ -60,6 +51,7 @@ function eta(seconds: number | null | undefined) { if (seconds == null) return '
 <template>
   <section>
     <div class="page-heading"><div><p class="eyebrow">TASK DASHBOARD</p><h1>任务清单</h1><p>FFmpeg 严格单并发，上传可与下一文件转码并行。</p></div><div class="live-chip" :class="{ online: store.connected }"><i></i>{{ store.connected ? '实时同步' : '正在重连' }}</div></div>
+    <div v-if="store.system.schedulerHealthy === false" class="form-error" role="alert">任务服务运行异常，请检查服务日志并重启服务。</div>
     <div v-if="store.interruptedCount" class="recovery-banner"><AlertTriangle :size="19" /><div><b>检测到 {{ store.interruptedCount }} 个上次未完成任务</b><span>任务已安全标记为中断，可从文件级检查点 Retry。</span></div></div>
     <div v-if="store.error || actionError" class="form-error"><AlertTriangle :size="16" />{{ actionError || store.error }}</div>
     <div class="metric-grid">
@@ -94,8 +86,10 @@ function eta(seconds: number | null | undefined) { if (seconds == null) return '
           <div><button v-if="['queued','running'].includes(task.status)" class="secondary-button" :disabled="busyId === task.id" @click="stop(task)"><CircleStop :size="16" />停止</button><button v-if="['interrupted','failed','partial_failed','stopped'].includes(task.status)" class="secondary-button" @click="dialog = { type: 'retry', task }"><RotateCcw :size="16" />Retry</button><button class="icon-button danger" title="删除任务" @click="dialog = { type: 'delete', task }"><Trash2 :size="16" /></button></div>
         </footer>
         <div v-if="expandedId === task.id" class="task-details">
-          <FileTable :files="files[task.id] || []" :companions="companions[task.id] || []" />
-          <details class="log-panel"><summary>诊断日志 · 最近 {{ logs[task.id]?.length || 0 }} 条</summary><div><p v-for="(line, index) in logs[task.id] || []" :key="index"><time>{{ formatDate(line.createdAt) }}</time><span :class="line.level">{{ line.message }}</span></p><p v-if="!logs[task.id]?.length" class="muted-copy">暂无诊断日志</p></div></details>
+          <p v-if="store.details[task.id]?.loading" role="status">正在加载全部文件与日志…</p>
+          <div v-if="store.details[task.id]?.error" class="form-error" role="alert">{{ store.details[task.id]?.error }}<button class="secondary-button" @click="store.loadDetails(task.id)">重新加载</button></div>
+          <FileTable :files="store.details[task.id]?.files || []" :companions="store.details[task.id]?.companions || []" />
+          <details class="log-panel"><summary>诊断日志 · 最近 {{ store.details[task.id]?.logs?.length || 0 }} 条</summary><div><p v-for="(line, index) in store.details[task.id]?.logs || []" :key="index"><time>{{ formatDate(line.createdAt) }}</time><span :class="line.level">{{ line.message }}</span></p><p v-if="!store.details[task.id]?.logs?.length" class="muted-copy">暂无诊断日志</p></div></details>
         </div>
       </article>
     </div>

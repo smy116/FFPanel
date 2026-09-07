@@ -111,6 +111,8 @@ export interface Task {
 }
 
 export interface SystemStatus {
+  schedulerHealthy?: boolean
+  schedulerWorkers?: Record<string, boolean>
   ffmpegVersion: string | null
   ffprobeAvailable: boolean
   rcloneAvailable: boolean

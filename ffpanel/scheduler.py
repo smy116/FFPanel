@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
+import logging
 import shutil
 import time
 from collections import deque
@@ -37,10 +38,9 @@ from .models import (
 from .schemas import HardwareMode, StorageKind, StorageLocation, TranscodeParams
 from .serialize import companion_dict, file_dict, task_dict
 from .storage import StorageError, StorageService
+from .task_state import update_task_summary
 
 ACTIVE_TASK_STATUSES = {TaskStatus.QUEUED.value, TaskStatus.RUNNING.value}
-TERMINAL_FILE_STAGES = {FileStage.COMPLETED.value, FileStage.FAILED.value, FileStage.SKIPPED.value}
-TERMINAL_COMPANION_STAGES = {CompanionStage.COMPLETED.value, CompanionStage.FAILED.value, CompanionStage.SKIPPED.value}
 HARDWARE_MODE_LABELS: dict[HardwareMode, str] = {
     "mpp_mpp": "Rockchip MPP 硬件编解码",
     "cpu_mpp": "CPU 软解 + MPP 编码",
@@ -74,6 +74,7 @@ class Scheduler:
         self.capabilities = CapabilitySnapshot(None, False, False, False, False, [], [], [], {}, "能力检测尚未完成")
         self.capability_id: str | None = None
         self._tasks: list[asyncio.Task[None]] = []
+        self._notifications: set[asyncio.Task[dict[str, Any]]] = set()
         self._stopping = asyncio.Event()
         self._active_transcode: tuple[str, asyncio.subprocess.Process] | None = None
         self._active_transfer: tuple[str, asyncio.subprocess.Process] | None = None
@@ -100,12 +101,38 @@ class Scheduler:
             session.commit()
             self.capability_id = capability.id
         await self.recover()
-        await self.events.publish("system.status", self.system_status())
         self._tasks = [
             asyncio.create_task(self._transcode_loop(), name="ffpanel-transcode"),
             asyncio.create_task(self._transfer_loop(), name="ffpanel-transfer"),
             asyncio.create_task(self._status_loop(), name="ffpanel-status"),
         ]
+        for worker in self._tasks:
+            worker.add_done_callback(self._worker_finished)
+        await self.events.publish("system.status", self.system_status())
+
+    def worker_status(self) -> dict[str, bool]:
+        return {
+            name: any(worker.get_name() == name and not worker.done() for worker in self._tasks)
+            and not self._stopping.is_set()
+            for name in ("ffpanel-transcode", "ffpanel-transfer", "ffpanel-status")
+        }
+
+    def is_healthy(self) -> bool:
+        return all(self.worker_status().values())
+
+    def _worker_finished(self, worker: asyncio.Task[None]) -> None:
+        if self._stopping.is_set():
+            return
+        error = None if worker.cancelled() else worker.exception()
+        logging.getLogger("ffpanel").error(
+            "Scheduler worker %s exited unexpectedly", worker.get_name(),
+            exc_info=(type(error), error, error.__traceback__) if error else None,
+        )
+        notification = asyncio.create_task(self.events.publish("system.status", {
+            "schedulerHealthy": False, "schedulerWorkers": self.worker_status(),
+        }))
+        self._notifications.add(notification)
+        notification.add_done_callback(self._notifications.discard)
 
     async def shutdown(self) -> None:
         self._stopping.set()
@@ -115,10 +142,13 @@ class Scheduler:
         for task in self._tasks:
             task.cancel()
         await asyncio.gather(*self._tasks, return_exceptions=True)
+        await asyncio.gather(*self._notifications, return_exceptions=True)
         await self._mark_active_interrupted("graceful_shutdown")
 
     def system_status(self) -> dict[str, Any]:
         return self.capabilities.as_dict() | {
+            "schedulerHealthy": self.is_healthy(),
+            "schedulerWorkers": self.worker_status(),
             "transcodeSlot": 1 if self._transcode_busy_task_id else 0,
             "uploadSlot": 1 if self._transfer_busy_task_id else 0,
             "uploadQueued": self._upload_queued_count(),
@@ -721,25 +751,7 @@ class Scheduler:
 
     async def _refresh_task(self, session: Session, task: Task) -> None:
         session.expire(task, ["files", "companions"])
-        task.completed_files = sum(item.stage == FileStage.COMPLETED.value for item in task.files)
-        task.failed_files = sum(item.stage == FileStage.FAILED.value for item in task.files)
-        task.skipped_files = sum(item.stage == FileStage.SKIPPED.value for item in task.files)
-        task.companion_completed = sum(item.stage == CompanionStage.COMPLETED.value for item in task.companions)
-        task.companion_failed = sum(item.stage == CompanionStage.FAILED.value for item in task.companions)
-        video_done = all(item.stage in TERMINAL_FILE_STAGES for item in task.files)
-        companion_done = all(item.stage in TERMINAL_COMPANION_STAGES for item in task.companions)
-        if task.stop_requested:
-            task.status = TaskStatus.STOPPED.value
-        elif video_done and companion_done:
-            failures = task.failed_files + task.companion_failed
-            successes = task.completed_files + task.companion_completed
-            task.status = TaskStatus.PARTIAL_FAILED.value if failures and successes else TaskStatus.FAILED.value if failures else TaskStatus.COMPLETED.value
-            task.finished_at = utcnow()
-        else:
-            task.status = TaskStatus.RUNNING.value
-        errors = [item.last_error for item in task.files if item.last_error]
-        errors.extend(item.last_error for item in task.companions if item.last_error)
-        task.last_error = next(iter(errors), None)
+        update_task_summary(task)
         task.version += 1
         session.commit()
         payload = task_dict(task)

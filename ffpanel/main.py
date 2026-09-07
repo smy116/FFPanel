@@ -7,7 +7,7 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Any
 
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, Response
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
@@ -63,8 +63,11 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.add_middleware(BasicAuthMiddleware, settings=settings)
     app.include_router(router)
 
-    @app.get("/healthz")
-    async def health() -> dict[str, str]:
+    @app.get("/healthz", responses={503: {"description": "后台调度器不可用"}})
+    async def health(request: Request, response: Response) -> dict[str, str]:
+        if not request.app.state.scheduler.is_healthy():
+            response.status_code = 503
+            return {"status": "unhealthy", "version": __version__}
         return {"status": "ok", "version": __version__}
 
     @app.exception_handler(StorageError)

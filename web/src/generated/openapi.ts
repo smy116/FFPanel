@@ -405,6 +405,12 @@ export interface components {
         };
         /** RuntimeStatusResponse */
         RuntimeStatusResponse: {
+            /** Schedulerhealthy */
+            schedulerHealthy: boolean;
+            /** Schedulerworkers */
+            schedulerWorkers: {
+                [key: string]: boolean;
+            };
             /** Ffmpegversion */
             ffmpegVersion?: string | null;
             /** Ffprobeavailable */
@@ -1609,6 +1615,13 @@ export interface operations {
                         [key: string]: string;
                     };
                 };
+            };
+            /** @description 后台调度器不可用 */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };

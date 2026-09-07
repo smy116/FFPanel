@@ -19,6 +19,7 @@ from .models import (
     TaskAttempt,
     TaskFile,
     TaskStatus,
+    utcnow,
 )
 from .schemas import (
     BrowseRequest,
@@ -38,6 +39,7 @@ from .schemas import (
 )
 from .serialize import companion_dict, file_dict, task_dict
 from .storage import StorageError, StorageService, companion_selected
+from .task_state import update_task_summary
 
 ERROR_RESPONSES: dict[int | str, dict[str, Any]] = {
     401: {"model": ErrorResponse, "description": "需要身份认证"},
@@ -168,7 +170,10 @@ async def task_files(
 ) -> dict[str, Any]:
     get_task_or_404(session, task_id)
     total = session.scalar(select(func.count()).select_from(TaskFile).where(TaskFile.task_id == task_id)) or 0
-    items = session.scalars(select(TaskFile).where(TaskFile.task_id == task_id).order_by(TaskFile.created_at).offset(offset).limit(limit)).all()
+    items = session.scalars(
+        select(TaskFile).where(TaskFile.task_id == task_id)
+        .order_by(TaskFile.created_at, TaskFile.id).offset(offset).limit(limit)
+    ).all()
     return {"items": [file_dict(item) for item in items], "total": total, "offset": offset, "limit": limit}
 
 
@@ -181,7 +186,10 @@ async def task_companions(
 ) -> dict[str, Any]:
     get_task_or_404(session, task_id)
     total = session.scalar(select(func.count()).select_from(CompanionFile).where(CompanionFile.task_id == task_id)) or 0
-    items = session.scalars(select(CompanionFile).where(CompanionFile.task_id == task_id).order_by(CompanionFile.created_at).offset(offset).limit(limit)).all()
+    items = session.scalars(
+        select(CompanionFile).where(CompanionFile.task_id == task_id)
+        .order_by(CompanionFile.created_at, CompanionFile.id).offset(offset).limit(limit)
+    ).all()
     return {"items": [companion_dict(item) for item in items], "total": total, "offset": offset, "limit": limit}
 
 
@@ -217,13 +225,13 @@ async def retry_task(task_id: str, request: Request, session: Session = Depends(
     task.attempts.append(TaskAttempt(attempt=task.retry_count + 1, trigger="retry", previous_error=previous_error))
     destination = StorageLocation.model_validate(task.destination_json)
     for item in task.files:
-        if item.stage == FileStage.COMPLETED.value:
+        if item.stage in {FileStage.COMPLETED.value, FileStage.SKIPPED.value}:
             continue
         if item.final_output_path and item.artifact_size is not None:
             final_stat = await request.app.state.storage.stat(destination, item.final_output_path)
             if final_stat and final_stat.get("size") == item.artifact_size:
                 item.stage = FileStage.COMPLETED.value
-                item.finished_at = item.finished_at or task.updated_at
+                item.finished_at = utcnow()
                 item.last_error = None
                 item.version += 1
                 continue
@@ -231,6 +239,7 @@ async def retry_task(task_id: str, request: Request, session: Session = Depends(
                 item.stage = FileStage.FAILED.value
                 item.attempt += 1
                 item.last_error = "最终输出已存在但文件大小不匹配，未执行覆盖"
+                item.finished_at = utcnow()
                 item.version += 1
                 continue
         if item.completed_artifact_path and _artifact_valid(item):
@@ -244,7 +253,7 @@ async def retry_task(task_id: str, request: Request, session: Session = Depends(
                     request.app.state.storage.commit_local(Path(item.completed_artifact_path), final_path)
                     item.completed_artifact_path = str(final_path)
                     item.stage = FileStage.COMPLETED.value
-                    item.finished_at = task.updated_at
+                    item.finished_at = utcnow()
         else:
             if item.temp_output_path:
                 _safe_unlink(Path(item.temp_output_path))
@@ -256,25 +265,17 @@ async def retry_task(task_id: str, request: Request, session: Session = Depends(
             item.ffmpeg_output = None
         item.attempt += 1
         item.last_error = None
-        item.finished_at = None
+        if item.stage != FileStage.COMPLETED.value:
+            item.finished_at = None
         item.version += 1
     for companion in task.companions:
-        if companion.stage != CompanionStage.COMPLETED.value:
+        if companion.stage not in {CompanionStage.COMPLETED.value, CompanionStage.SKIPPED.value}:
             companion.stage = CompanionStage.PENDING.value
             companion.attempt += 1
             companion.last_error = None
             companion.finished_at = None
             companion.version += 1
-    pending = any(item.stage in {FileStage.PENDING.value, FileStage.UPLOAD_QUEUED.value} for item in task.files)
-    pending = pending or any(item.stage == CompanionStage.PENDING.value for item in task.companions)
-    if not pending:
-        failures = sum(item.stage == FileStage.FAILED.value for item in task.files) + sum(
-            item.stage == CompanionStage.FAILED.value for item in task.companions
-        )
-        successes = sum(item.stage == FileStage.COMPLETED.value for item in task.files) + sum(
-            item.stage == CompanionStage.COMPLETED.value for item in task.companions
-        )
-        task.status = TaskStatus.PARTIAL_FAILED.value if failures and successes else TaskStatus.FAILED.value if failures else TaskStatus.COMPLETED.value
+    update_task_summary(task, pending_status=TaskStatus.QUEUED)
     session.commit()
     result = task_dict(task)
     await request.app.state.events.publish("task.state", result, task_id=task.id, version=task.version)
