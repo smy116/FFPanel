@@ -8,7 +8,7 @@ import time
 from collections import deque
 from datetime import UTC, datetime
 from pathlib import Path, PurePosixPath
-from typing import Any
+from typing import Any, cast
 
 import psutil
 from sqlalchemy import func, select
@@ -16,6 +16,7 @@ from sqlalchemy.orm import Session, sessionmaker
 
 from .config import Settings
 from .events import EventBus
+from .hardware import registry
 from .media import (
     CapabilitySnapshot,
     MediaError,
@@ -41,22 +42,14 @@ from .storage import StorageError, StorageService
 from .task_state import update_task_summary
 
 ACTIVE_TASK_STATUSES = {TaskStatus.QUEUED.value, TaskStatus.RUNNING.value}
-HARDWARE_MODE_LABELS: dict[HardwareMode, str] = {
-    "mpp_mpp": "Rockchip MPP 硬件编解码",
-    "cpu_mpp": "CPU 软解 + MPP 编码",
-    "cpu_cpu": "CPU 软件编解码",
-}
-HARDWARE_FALLBACK_CHAINS: dict[HardwareMode, tuple[HardwareMode, ...]] = {
-    "mpp_mpp": ("mpp_mpp", "cpu_mpp", "cpu_cpu"),
-    "cpu_mpp": ("cpu_mpp", "cpu_cpu"),
-    "cpu_cpu": ("cpu_cpu",),
-}
 
 
 def transcode_mode_chain(params: TranscodeParams) -> tuple[HardwareMode, ...]:
-    if not params.auto_fallback:
-        return (params.hardware_mode,)
-    return HARDWARE_FALLBACK_CHAINS[params.hardware_mode]
+    # Only the three legacy profiles are reachable through the current public schema.
+    return tuple(
+        cast(HardwareMode, mode)
+        for mode in registry.mode_chain(params.hardware_mode, params.auto_fallback)
+    )
 
 
 class Scheduler:
@@ -385,7 +378,7 @@ class Scheduler:
                     if self._task_stop_requested(task_id):
                         raise MediaError("task_stopped", "任务已停止") from exc
                     summary = self._summarize_transcode_error(exc)
-                    failures.append(f"{HARDWARE_MODE_LABELS[mode]}：{summary}")
+                    failures.append(f"{registry.label(mode)}：{summary}")
                     self._safe_unlink(temp_path)
                     next_mode = modes[index + 1] if index + 1 < len(modes) else None
                     if next_mode:
@@ -393,8 +386,8 @@ class Scheduler:
                             "field": "hardwareMode",
                             "code": "transcode_auto_fallback",
                             "message": (
-                                f"{HARDWARE_MODE_LABELS[mode]}失败：{summary}；"
-                                f"自动退回到{HARDWARE_MODE_LABELS[next_mode]}"
+                                f"{registry.label(mode)}失败：{summary}；"
+                                f"自动退回到{registry.label(next_mode)}"
                             ),
                         }
                         fallback_reasons.append(reason)
@@ -406,7 +399,7 @@ class Scheduler:
                     final_reason = {
                         "field": "hardwareMode",
                         "code": "transcode_attempt_failed",
-                        "message": f"{HARDWARE_MODE_LABELS[mode]}失败：{summary}",
+                        "message": f"{registry.label(mode)}失败：{summary}",
                     }
                     fallback_reasons.append(final_reason)
                     await self._record_transcode_failure(

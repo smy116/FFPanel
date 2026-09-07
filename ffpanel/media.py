@@ -4,51 +4,29 @@ import asyncio
 import json
 import math
 import re
-from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
 from .config import Settings
+from .hardware import registry
+from .hardware.compat import (
+    CapabilitySnapshot,
+    legacy_snapshot,
+    mock_snapshot,
+    restore_video_plan,
+)
+from .hardware.types import FFmpegInventory, MediaError, VideoRequest, VideoSettings
 from .schemas import TranscodeParams
 
-
-class MediaError(RuntimeError):
-    def __init__(self, code: str, message: str) -> None:
-        super().__init__(message)
-        self.code = code
-
-
-@dataclass(slots=True)
-class CapabilitySnapshot:
-    ffmpeg_version: str | None
-    ffprobe_available: bool
-    rclone_available: bool
-    mpp_available: bool
-    rga_available: bool
-    encoders: list[str]
-    decoders: list[str]
-    filters: list[str]
-    devices: dict[str, bool]
-    error: str | None = None
-
-    def as_dict(self) -> dict[str, Any]:
-        return {
-            "ffmpegVersion": self.ffmpeg_version,
-            "ffprobeAvailable": self.ffprobe_available,
-            "rcloneAvailable": self.rclone_available,
-            "mppAvailable": self.mpp_available,
-            "rgaAvailable": self.rga_available,
-            "encoders": self.encoders,
-            "decoders": self.decoders,
-            "filters": self.filters,
-            "devices": self.devices,
-            "error": self.error,
-        }
+__all__ = [
+    "CapabilitySnapshot", "MediaError", "build_ffmpeg_argv", "decide_parameters",
+    "detect_capabilities", "normalize_probe", "parse_progress_block", "probe_media",
+]
 
 
 async def detect_capabilities(settings: Settings) -> CapabilitySnapshot:
     if settings.mock_media:
-        return CapabilitySnapshot("mock-1.0", True, False, True, True, ["h264_rkmpp", "hevc_rkmpp", "libx264", "libx265"], ["h264_rkmpp", "hevc_rkmpp"], ["scale_rkrga"], {}, None)
+        return mock_snapshot()
     try:
         version, encoders, decoders, filters = await asyncio.gather(
             _capture([settings.ffmpeg_path, "-version"]),
@@ -56,27 +34,17 @@ async def detect_capabilities(settings: Settings) -> CapabilitySnapshot:
             _capture([settings.ffmpeg_path, "-hide_banner", "-decoders"]),
             _capture([settings.ffmpeg_path, "-hide_banner", "-filters"]),
         )
-        encoder_names = _extract_capabilities(encoders, {"h264_rkmpp", "hevc_rkmpp", "libx264", "libx265"})
-        decoder_names = _extract_capabilities(
-            decoders,
-            {
-                "av1_rkmpp", "h263_rkmpp", "h264_rkmpp", "hevc_rkmpp", "mjpeg_rkmpp",
-                "mpeg1_rkmpp", "mpeg2_rkmpp", "mpeg4_rkmpp", "vp8_rkmpp", "vp9_rkmpp",
-            },
+        devices = {path: Path(path).exists() for path in registry.device_paths}
+        inventory = FFmpegInventory(
+            frozenset(re.findall(r"\b\w+\b", encoders)),
+            frozenset(re.findall(r"\b\w+\b", decoders)),
+            frozenset(re.findall(r"\b\w+\b", filters)),
+            devices,
         )
-        filter_names = _extract_capabilities(filters, {"scale_rkrga", "vpp_rkrga", "overlay_rkrga"})
-        device_paths = (
-            "/dev/dri", "/dev/dma_heap", "/dev/rga", "/dev/mpp_service", "/dev/mpp-service",
-            "/dev/vpu_service", "/dev/vpu-service", "/dev/hevc_service", "/dev/hevc-service",
-            "/dev/rkvdec", "/dev/rkvenc", "/dev/vepu", "/dev/h265e", "/dev/iep",
+        return legacy_snapshot(
+            version.splitlines()[0], await _available(settings.rclone_path),
+            registry.probe(inventory), devices,
         )
-        devices = {path: Path(path).exists() for path in device_paths}
-        mpp_nodes = {path for path in device_paths if path not in {"/dev/dri", "/dev/dma_heap", "/dev/rga", "/dev/iep"}}
-        mpp = bool({"h264_rkmpp", "hevc_rkmpp"} & encoder_names) and bool(decoder_names) and any(
-            devices[path] for path in mpp_nodes
-        )
-        rga = "scale_rkrga" in filter_names and devices.get("/dev/rga", False)
-        return CapabilitySnapshot(version.splitlines()[0], True, await _available(settings.rclone_path), mpp, rga, sorted(encoder_names), sorted(decoder_names), sorted(filter_names), devices)
     except (FileNotFoundError, MediaError) as exc:
         return CapabilitySnapshot(None, False, await _available(settings.rclone_path), False, False, [], [], [], {}, str(exc))
 
@@ -176,28 +144,18 @@ def decide_parameters(
     elif requested.smart_bitrate_cap and not source_bitrate:
         reasons.append(_reason("bitrateKbps", "source_bitrate_unknown", "无法确定源码率，使用用户上限"))
 
-    encoder = {
-        ("cpu_cpu", "h264"): "libx264", ("cpu_cpu", "hevc"): "libx265",
-        ("cpu_mpp", "h264"): "h264_rkmpp", ("cpu_mpp", "hevc"): "hevc_rkmpp",
-        ("mpp_mpp", "h264"): "h264_rkmpp", ("mpp_mpp", "hevc"): "hevc_rkmpp",
-    }[(requested.hardware_mode, requested.video_codec)]
-    source_codec = str(video.get("codec"))
-    decoder_codec = {
-        "h265": "hevc", "avc": "h264", "mpeg1video": "mpeg1", "mpeg2video": "mpeg2",
-    }.get(source_codec, source_codec)
-    decoder = f"{decoder_codec}_rkmpp"
-    needs_rga = requested.hardware_mode == "mpp_mpp" and transform
-    if requested.hardware_mode == "mpp_mpp" and (
-        not capabilities.mpp_available
-        or decoder not in capabilities.decoders
-        or (needs_rga and not capabilities.rga_available)
-        or (rotation != 0 and "vpp_rkrga" not in capabilities.filters)
-    ):
-        raise MediaError("hardware_unavailable", "MPP/RGA 能力不足，无法执行所选硬件方案")
-    if requested.hardware_mode == "cpu_mpp" and not capabilities.mpp_available:
-        raise MediaError("hardware_unavailable", "MPP 编码器不可用")
-    if encoder not in capabilities.encoders:
-        raise MediaError("encoder_unavailable", f"所选编码器不可用：{encoder}")
+    profile = registry.profiles[requested.hardware_mode]
+    backend = registry.backend_for(profile.id)
+    request = VideoRequest(
+        source_codec=str(video.get("codec")), video_codec=requested.video_codec,
+        settings=VideoSettings(
+            width=target_width, height=target_height, transform_required=transform,
+            rotation=rotation, normalize_sar=not math.isclose(sar, 1.0),
+            bitrate_kbps=bitrate, frame_rate=requested.frame_rate,
+            rate_control=requested.rate_control,
+        ),
+    )
+    plan = backend.plan_video(request, profile, capabilities.for_backend(backend.id))
 
     audio_codecs = {str(item.get("codec")) for item in source.get("audio", [])}
     if requested.container == "mp4" and requested.audio_strategy == "copy" and not audio_codecs.issubset({"aac", "mp3", "ac3", "eac3", "alac"}):
@@ -220,7 +178,7 @@ def decide_parameters(
     effective = {
         "hardwareMode": requested.hardware_mode,
         "videoCodec": requested.video_codec,
-        "encoder": encoder,
+        "encoder": plan.encoder,
         "container": requested.container,
         "width": target_width,
         "height": target_height,
@@ -228,7 +186,7 @@ def decide_parameters(
         "transformRequired": transform,
         "rotation": rotation,
         "normalizeSar": not math.isclose(sar, 1.0),
-        "scaleFilter": "vpp_rkrga" if rotation and requested.hardware_mode == "mpp_mpp" else "scale_rkrga" if needs_rga else "scale" if transform else None,
+        "scaleFilter": plan.scale_filter,
         "bitrateKbps": bitrate,
         "frameRate": requested.frame_rate,
         "rateControl": requested.rate_control,
@@ -245,42 +203,11 @@ def build_ffmpeg_argv(
     effective: dict[str, Any],
 ) -> list[str]:
     argv = [settings.ffmpeg_path, "-nostdin", "-hide_banner", "-progress", "pipe:1", "-nostats", "-stats_period", "0.5"]
-    if effective["hardwareMode"] == "mpp_mpp":
-        argv += ["-hwaccel", "rkmpp", "-hwaccel_output_format", "drm_prime", "-afbc", "rga"]
-    if effective.get("rotation"):
-        argv += ["-noautorotate"]
+    plan = restore_video_plan(effective, registry)
+    video_args = registry.backend_for(plan.profile.id).build_video_args(plan)
+    argv.extend(video_args.before_input)
     argv += ["-i", str(input_path), "-map", "0:v:0", "-map", "0:a?", "-map", "0:s?"]
-    if effective.get("transformRequired"):
-        rotation = int(effective.get("rotation") or 0)
-        if effective["scaleFilter"] in {"scale_rkrga", "vpp_rkrga"}:
-            if rotation:
-                transpose = {90: "cclock", 180: "reversal", 270: "clock"}[rotation]
-                video_filter = f"vpp_rkrga=w={effective['width']}:h={effective['height']}:format=nv12:transpose={transpose}"
-            else:
-                video_filter = f"scale_rkrga=w={effective['width']}:h={effective['height']}:format=nv12"
-        else:
-            filters = []
-            if rotation == 90:
-                filters.append("transpose=cclock")
-            elif rotation == 180:
-                filters.extend(["hflip", "vflip"])
-            elif rotation == 270:
-                filters.append("transpose=clock")
-            filters.append(f"scale={effective['width']}:{effective['height']}:flags=fast_bilinear")
-            filters.append("format=yuv420p")
-            video_filter = ",".join(filters)
-        if effective.get("normalizeSar"):
-            video_filter += ",setsar=1"
-        argv += ["-vf", video_filter]
-    bitrate = f"{effective['bitrateKbps']}k"
-    argv += ["-c:v", effective["encoder"], "-b:v", bitrate]
-    if effective["rateControl"] == "cbr":
-        argv += ["-minrate", bitrate]
-    argv += ["-maxrate", bitrate, "-bufsize", f"{effective['bitrateKbps'] * 2}k"]
-    if effective["hardwareMode"] != "cpu_cpu":
-        argv += ["-rc_mode", effective["rateControl"].upper()]
-    if effective["frameRate"] != "source":
-        argv += ["-r", effective["frameRate"]]
+    argv.extend(video_args.after_input)
     argv += ["-c:a", effective["audioCodec"]] if effective.get("audioCodec") else ["-an"]
     argv += ["-c:s", effective["subtitleCodec"]] if effective.get("subtitleCodec") else ["-sn"]
     argv += ["-f", "matroska" if effective["container"] == "mkv" else "mp4", "-y", str(output_path)]
@@ -389,10 +316,6 @@ def _float(value: Any) -> float | None:
 
 def _reason(field: str, code: str, message: str) -> dict[str, str]:
     return {"field": field, "code": code, "message": message}
-
-
-def _extract_capabilities(output: str, candidates: set[str]) -> set[str]:
-    return {candidate for candidate in candidates if re.search(rf"\b{re.escape(candidate)}\b", output)}
 
 
 async def _available(binary: str) -> bool:
