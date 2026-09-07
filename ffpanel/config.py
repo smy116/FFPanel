@@ -21,6 +21,9 @@ class Settings(BaseSettings):
     ffmpeg_path: str = "ffmpeg"
     ffprobe_path: str = "ffprobe"
     rclone_path: str = "rclone"
+    nvidia_device: int = Field(default=0, ge=0)
+    intel_render_device: str = "/dev/dri/renderD128"
+    hardware_probe_timeout_seconds: float = Field(default=10.0, ge=1.0, le=60.0)
     auth_enabled: bool = False
     auth_username: str | None = None
     auth_password: str | None = None

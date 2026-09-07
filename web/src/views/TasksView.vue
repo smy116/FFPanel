@@ -5,6 +5,7 @@ import ConfirmDialog from '../components/ConfirmDialog.vue'
 import FileTable from '../components/FileTable.vue'
 import { useTasksStore } from '../stores/tasks'
 import type { Task, TaskStatus } from '../types'
+import { modeLabel } from '../hardware'
 
 const store = useTasksStore()
 const expandedId = ref<string | null>(null)
@@ -68,7 +69,7 @@ function eta(seconds: number | null | undefined) { if (seconds == null) return '
     <div v-else class="task-list">
       <article v-for="task in store.tasks" :key="task.id" class="task-card" :class="`task-${task.status}`">
         <header class="task-header">
-          <div class="task-title"><div class="task-icon"><Zap v-if="task.requestedParams.hardwareMode !== 'cpu_cpu'" :size="19" /><Gauge v-else :size="19" /></div><div><div class="task-name-row"><h2>{{ task.name }}</h2><span class="status-badge" :class="statusInfo[task.status].tone">{{ statusInfo[task.status].label }}</span><span v-if="task.retryCount" class="retry-badge">Retry #{{ task.retryCount }}</span></div><p><code>{{ task.id.slice(0, 8) }}</code> · {{ formatDate(task.createdAt) }} · {{ task.requestedParams.hardwareMode === 'cpu_cpu' ? 'CPU' : 'MPP Hardware' }} / {{ task.requestedParams.videoCodec.toUpperCase() }} · {{ task.requestedParams.autoFallback ? '自动退回' : '严格模式' }}</p></div></div>
+          <div class="task-title"><div class="task-icon"><Zap v-if="task.requestedParams.hardwareMode !== 'cpu_cpu'" :size="19" /><Gauge v-else :size="19" /></div><div><div class="task-name-row"><h2>{{ task.name }}</h2><span class="status-badge" :class="statusInfo[task.status].tone">{{ statusInfo[task.status].label }}</span><span v-if="task.retryCount" class="retry-badge">Retry #{{ task.retryCount }}</span></div><p><code>{{ task.id.slice(0, 8) }}</code> · {{ formatDate(task.createdAt) }} · {{ modeLabel(task.requestedParams.hardwareMode, store.system.hardwareProfiles) }} / {{ task.requestedParams.videoCodec.toUpperCase() }} · {{ task.requestedParams.autoFallback ? '自动退回' : '严格模式' }}</p></div></div>
           <div class="path-summary"><span :title="formatLocation(task, 'source')">{{ formatLocation(task, 'source') }}</span><b>→</b><span :title="formatLocation(task, 'destination')">{{ formatLocation(task, 'destination') }}</span></div>
         </header>
         <div v-if="task.status === 'interrupted'" class="interrupted-note"><FileClock :size="17" /><div><b>上次运行被中断</b><span>{{ task.interruptedReason || '容器或进程非正常退出' }} · 已完成 {{ task.completedFiles }}/{{ task.totalFiles }}</span></div></div>

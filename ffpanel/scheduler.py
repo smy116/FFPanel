@@ -45,7 +45,7 @@ ACTIVE_TASK_STATUSES = {TaskStatus.QUEUED.value, TaskStatus.RUNNING.value}
 
 
 def transcode_mode_chain(params: TranscodeParams) -> tuple[HardwareMode, ...]:
-    # Only the three legacy profiles are reachable through the current public schema.
+    # Registry owns fallback order for all public profiles.
     return tuple(
         cast(HardwareMode, mode)
         for mode in registry.mode_chain(params.hardware_mode, params.auto_fallback)
@@ -88,6 +88,7 @@ class Scheduler:
                 decoders_json=self.capabilities.decoders,
                 filters_json=self.capabilities.filters,
                 devices_json=self.capabilities.devices,
+                hardware_json=self.capabilities.hardware_dict(),
                 error=self.capabilities.error,
             )
             session.add(capability)

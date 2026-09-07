@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, ref } from "vue";
 import type { ParameterDecision } from "../types";
+import { modeLabel } from "../hardware";
 
 const props = defineProps<{ decision: ParameterDecision }>();
 const changedOnly = ref(true);
@@ -35,15 +36,7 @@ const keys = computed(() => {
 function value(record: Record<string, unknown> | null, key: string): string {
   const item = record?.[key];
   if (key === "hardwareMode" && typeof item === "string")
-    return (
-      (
-        {
-          mpp_mpp: "MPP 硬件编解码",
-          cpu_mpp: "CPU 软解 + MPP 编码",
-          cpu_cpu: "CPU 软件编解码",
-        } as Record<string, string>
-      )[item] || item
-    );
+    return modeLabel(item);
   if (key === "autoFallback" && typeof item === "boolean")
     return item ? "开启" : "关闭";
   return item == null

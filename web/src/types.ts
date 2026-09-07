@@ -2,7 +2,18 @@ export type TaskStatus = 'queued' | 'running' | 'completed' | 'partial_failed' |
 export type FileStage = 'pending' | 'downloading' | 'probing' | 'transcoding' | 'upload_queued' | 'uploading' | 'completed' | 'failed' | 'interrupted' | 'skipped'
 export type CompanionStage = 'pending' | 'copying' | 'completed' | 'failed' | 'interrupted' | 'skipped'
 export type CompanionFilePolicy = 'none' | 'subtitles' | 'all_non_video'
-export type HardwareMode = 'mpp_mpp' | 'cpu_mpp' | 'cpu_cpu'
+export type HardwareMode = 'mpp_mpp' | 'cpu_mpp' | 'cpu_cpu' | 'nvdec_nvenc' | 'cpu_nvenc' | 'qsv_qsv' | 'cpu_qsv' | 'vaapi_vaapi' | 'cpu_vaapi'
+export interface HardwareBackend {
+  id: string; label: string; group: string; detected: boolean
+  status: 'detecting' | 'ready' | 'partial' | 'unavailable'
+  device?: string | null; features: Record<string, boolean>; errors: Record<string, string>
+  encoders: string[]; decoders: string[]; filters: string[]
+}
+export interface HardwareProfile {
+  id: HardwareMode; label: string; backendId: string; decodeMode: 'hardware' | 'software'
+  fallback?: HardwareMode | null; detected: boolean; available: boolean
+  codecs: ('h264' | 'hevc')[]; reason?: string | null
+}
 export type StorageKind = 'local' | 'rclone'
 
 export interface StorageLocation { kind: StorageKind; path: string; remote?: string | null }
@@ -111,6 +122,9 @@ export interface Task {
 }
 
 export interface SystemStatus {
+  hardwareBackends?: HardwareBackend[]
+  hardwareProfiles?: HardwareProfile[]
+  recommendedHardwareMode?: HardwareMode
   schedulerHealthy?: boolean
   schedulerWorkers?: Record<string, boolean>
   ffmpegVersion: string | null

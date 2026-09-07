@@ -290,6 +290,10 @@ button, a { -webkit-tap-highlight-color: transparent; }
   .file-detail-dialog { width: calc(100vw - 20px); max-height: calc(100vh - 20px); padding: 16px; }
   .file-detail-meta { grid-template-columns: 1fr 1fr; }
   .wizard-actions { margin: 22px -18px -18px; padding: 15px 18px; justify-content: flex-end; }
-  .statusbar { gap: 12px; padding: 0 12px; }
-  .statusbar div:nth-child(3) { display: none; }
+  .statusbar { gap: 8px 12px; padding: 6px 12px; flex-wrap: wrap; }
+  .statusbar .status-remotes { display: none; }
 }
+.hardware-status { position: relative; }
+.hardware-status summary { cursor: pointer; display: flex; align-items: center; gap: 6px; }
+.hardware-status-details { position: absolute; bottom: 28px; left: 0; z-index: 20; width: min(360px, 85vw); padding: 12px; background: white; border: 1px solid #dbe3ec; border-radius: 10px; box-shadow: 0 8px 24px #0f172a18; overflow-wrap: anywhere; }
+.hardware-status-details p { margin: 4px 0; }

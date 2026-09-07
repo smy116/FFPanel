@@ -4,6 +4,8 @@ import { createMemoryHistory, createRouter } from 'vue-router'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { api } from '../api'
 import NewTaskView from './NewTaskView.vue'
+import { useTasksStore } from '../stores/tasks'
+import type { HardwareProfile } from '../types'
 
 vi.mock('../api', () => ({ api: {
   remotes: vi.fn().mockResolvedValue({ items: [], available: false }),
@@ -13,6 +15,31 @@ vi.mock('../api', () => ({ api: {
 
 describe('new task wizard', () => {
   beforeEach(() => { vi.clearAllMocks(); setActivePinia(createPinia()) })
+
+  it('selects dynamic GPU profiles and preserves manual choice across SSE updates', async () => {
+    const profiles: HardwareProfile[] = [
+      { id: 'nvdec_nvenc', label: 'NVDEC + NVENC', backendId: 'nvidia', decodeMode: 'hardware', detected: true, available: true, codecs: ['hevc'], fallback: 'cpu_cpu' },
+      { id: 'qsv_qsv', label: 'Intel QSV', backendId: 'qsv', decodeMode: 'hardware', detected: true, available: true, codecs: ['h264', 'hevc'], fallback: 'cpu_cpu' },
+      { id: 'cpu_cpu', label: 'CPU 软件编解码', backendId: 'cpu', decodeMode: 'software', detected: true, available: true, codecs: ['h264', 'hevc'] },
+    ]
+    const original = await api.snapshot()
+    vi.mocked(api.snapshot).mockResolvedValueOnce({ ...original, system: { ...original.system, hardwareProfiles: profiles } })
+    const router = createRouter({ history: createMemoryHistory(), routes: [{ path: '/new', component: NewTaskView }] })
+    await router.push('/new'); await router.isReady()
+    const wrapper = mount(NewTaskView, { global: { plugins: [router] } })
+    await flushPromises()
+    await wrapper.findAll('button').find(button => button.text().includes('下一步'))!.trigger('click')
+    const selected = () => wrapper.find('.profile-cards .selected').text()
+    expect(selected()).toContain('NVDEC')
+    expect(wrapper.text()).not.toContain('Rockchip')
+    await wrapper.findAll('button').find(button => button.text() === 'H.264 / AVC')!.trigger('click')
+    expect(selected()).toContain('Intel QSV')
+    await wrapper.findAll('.profile-cards button').find(button => button.text().includes('CPU 软件编解码'))!.trigger('click')
+    useTasksStore().mergeEvent({ id: 'gpu-update', type: 'system.status', version: 1, updatedAt: '', taskId: null, fileId: null, payload: { hardwareProfiles: profiles } })
+    await flushPromises()
+    expect(selected()).toContain('CPU 软件编解码')
+    wrapper.unmount()
+  })
 
   it('keeps form state while moving through the four-step flow', async () => {
     const router = createRouter({ history: createMemoryHistory(), routes: [{ path: '/new', component: NewTaskView }, { path: '/tasks', component: { template: '<div />' } }] })

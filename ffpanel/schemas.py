@@ -39,7 +39,10 @@ class CompanionFilePolicy(str, Enum):
     ALL_NON_VIDEO = "all_non_video"
 
 
-HardwareMode = Literal["mpp_mpp", "cpu_mpp", "cpu_cpu"]
+HardwareMode = Literal[
+    "mpp_mpp", "cpu_mpp", "cpu_cpu", "nvdec_nvenc", "cpu_nvenc",
+    "qsv_qsv", "cpu_qsv", "vaapi_vaapi", "cpu_vaapi",
+]
 VideoCodec = Literal["h264", "hevc"]
 Container = Literal["mp4", "mkv"]
 FrameRate = Literal["source", "24", "25", "30", "50", "60"]
@@ -212,6 +215,32 @@ class TaskResponse(APIModel):
     updated_at: datetime
 
 
+class HardwareBackendResponse(APIModel):
+    id: str
+    label: str
+    group: str
+    detected: bool
+    status: Literal["detecting", "ready", "partial", "unavailable"]
+    device: str | None = None
+    features: dict[str, bool]
+    errors: dict[str, str]
+    encoders: list[str]
+    decoders: list[str]
+    filters: list[str]
+
+
+class HardwareProfileResponse(APIModel):
+    id: HardwareMode
+    label: str
+    backend_id: str
+    decode_mode: Literal["hardware", "software"]
+    fallback: HardwareMode | None = None
+    detected: bool
+    available: bool
+    codecs: list[VideoCodec]
+    reason: str | None = None
+
+
 class RuntimeStatusResponse(APIModel):
     scheduler_healthy: bool
     scheduler_workers: dict[str, bool]
@@ -220,6 +249,9 @@ class RuntimeStatusResponse(APIModel):
     rclone_available: bool
     mpp_available: bool
     rga_available: bool
+    hardware_backends: list[HardwareBackendResponse] = Field(default_factory=list)
+    hardware_profiles: list[HardwareProfileResponse] = Field(default_factory=list)
+    recommended_hardware_mode: HardwareMode = "cpu_cpu"
     encoders: list[str]
     decoders: list[str]
     filters: list[str]

@@ -90,12 +90,15 @@ def companion_dict(item: CompanionFile) -> dict[str, Any]:
 
 
 def capability_dict(item: RuntimeCapability | None) -> dict[str, Any]:
+    from .hardware.compat import CapabilitySnapshot
+
     if item is None:
-        return {
-            "ffmpegVersion": None, "ffprobeAvailable": False, "rcloneAvailable": False,
-            "mppAvailable": False, "rgaAvailable": False, "encoders": [], "decoders": [],
-            "filters": [], "devices": {}, "error": "能力检测尚未完成",
-        }
+        return CapabilitySnapshot(None, False, False, False, False, [], [], [], {},
+                                  "能力检测尚未完成").as_dict()
+    hardware = item.hardware_json or CapabilitySnapshot(
+        item.ffmpeg_version, item.ffprobe_available, item.rclone_available,
+        item.mpp_available, item.rga_available, item.encoders_json, item.decoders_json,
+        item.filters_json, item.devices_json, item.error).hardware_dict()
     return {
         "id": item.id,
         "ffmpegVersion": item.ffmpeg_version,
@@ -109,5 +112,5 @@ def capability_dict(item: RuntimeCapability | None) -> dict[str, Any]:
         "devices": item.devices_json,
         "error": item.error,
         "createdAt": iso(item.created_at),
-    }
+    } | hardware
 

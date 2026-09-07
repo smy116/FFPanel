@@ -1391,6 +1391,194 @@
         ],
         "title": "FileStage"
       },
+      "HardwareBackendResponse": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "group": {
+            "type": "string",
+            "title": "Group"
+          },
+          "detected": {
+            "type": "boolean",
+            "title": "Detected"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "detecting",
+              "ready",
+              "partial",
+              "unavailable"
+            ],
+            "title": "Status"
+          },
+          "device": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Device"
+          },
+          "features": {
+            "additionalProperties": {
+              "type": "boolean"
+            },
+            "type": "object",
+            "title": "Features"
+          },
+          "errors": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object",
+            "title": "Errors"
+          },
+          "encoders": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Encoders"
+          },
+          "decoders": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Decoders"
+          },
+          "filters": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Filters"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "label",
+          "group",
+          "detected",
+          "status",
+          "features",
+          "errors",
+          "encoders",
+          "decoders",
+          "filters"
+        ],
+        "title": "HardwareBackendResponse"
+      },
+      "HardwareProfileResponse": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "enum": [
+              "mpp_mpp",
+              "cpu_mpp",
+              "cpu_cpu",
+              "nvdec_nvenc",
+              "cpu_nvenc",
+              "qsv_qsv",
+              "cpu_qsv",
+              "vaapi_vaapi",
+              "cpu_vaapi"
+            ],
+            "title": "Id"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "backendId": {
+            "type": "string",
+            "title": "Backendid"
+          },
+          "decodeMode": {
+            "type": "string",
+            "enum": [
+              "hardware",
+              "software"
+            ],
+            "title": "Decodemode"
+          },
+          "fallback": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "mpp_mpp",
+                  "cpu_mpp",
+                  "cpu_cpu",
+                  "nvdec_nvenc",
+                  "cpu_nvenc",
+                  "qsv_qsv",
+                  "cpu_qsv",
+                  "vaapi_vaapi",
+                  "cpu_vaapi"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fallback"
+          },
+          "detected": {
+            "type": "boolean",
+            "title": "Detected"
+          },
+          "available": {
+            "type": "boolean",
+            "title": "Available"
+          },
+          "codecs": {
+            "items": {
+              "type": "string",
+              "enum": [
+                "h264",
+                "hevc"
+              ]
+            },
+            "type": "array",
+            "title": "Codecs"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "label",
+          "backendId",
+          "decodeMode",
+          "detected",
+          "available",
+          "codecs"
+        ],
+        "title": "HardwareProfileResponse"
+      },
       "LogEntryResponse": {
         "properties": {
           "level": {
@@ -1637,6 +1825,36 @@
           "rgaAvailable": {
             "type": "boolean",
             "title": "Rgaavailable"
+          },
+          "hardwareBackends": {
+            "items": {
+              "$ref": "#/components/schemas/HardwareBackendResponse"
+            },
+            "type": "array",
+            "title": "Hardwarebackends"
+          },
+          "hardwareProfiles": {
+            "items": {
+              "$ref": "#/components/schemas/HardwareProfileResponse"
+            },
+            "type": "array",
+            "title": "Hardwareprofiles"
+          },
+          "recommendedHardwareMode": {
+            "type": "string",
+            "enum": [
+              "mpp_mpp",
+              "cpu_mpp",
+              "cpu_cpu",
+              "nvdec_nvenc",
+              "cpu_nvenc",
+              "qsv_qsv",
+              "cpu_qsv",
+              "vaapi_vaapi",
+              "cpu_vaapi"
+            ],
+            "title": "Recommendedhardwaremode",
+            "default": "cpu_cpu"
           },
           "encoders": {
             "items": {
@@ -2239,7 +2457,13 @@
             "enum": [
               "mpp_mpp",
               "cpu_mpp",
-              "cpu_cpu"
+              "cpu_cpu",
+              "nvdec_nvenc",
+              "cpu_nvenc",
+              "qsv_qsv",
+              "cpu_qsv",
+              "vaapi_vaapi",
+              "cpu_vaapi"
             ],
             "title": "Hardwaremode",
             "default": "mpp_mpp"

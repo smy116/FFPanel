@@ -1,11 +1,11 @@
 from __future__ import annotations
 
-from alembic import context
 from sqlalchemy import engine_from_config, pool
 
+from alembic import context
+from ffpanel import models  # noqa: F401
 from ffpanel.config import get_settings
 from ffpanel.db import Base
-from ffpanel import models  # noqa: F401
 
 config = context.config
 config.set_main_option("sqlalchemy.url", get_settings().db_url)

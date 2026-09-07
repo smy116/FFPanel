@@ -4,15 +4,16 @@
 [![Python 3.12+](https://img.shields.io/badge/Python-3.12%2B-3776AB?logo=python&logoColor=white)](https://www.python.org/)
 [![Vue 3](https://img.shields.io/badge/Vue-3-4FC08D?logo=vuedotjs&logoColor=white)](https://vuejs.org/)
 
-面向 Rockchip RK3588 的自托管批量视频转码工作台。
+支持 Rockchip RK3588、NVIDIA 与 Intel GPU 的自托管批量视频转码工作台。
 
-FFPanel 将本地目录与已有的 [rclone](https://rclone.org/) remote 统一为任务输入/输出，使用 [ffmpeg-rockchip](https://github.com/nyanmisaka/ffmpeg-rockchip) 提供硬件编解码能力，并通过 SQLite 保存文件级状态与可恢复检查点。它适合部署在家庭服务器、NAS 或边缘设备上，通过浏览器完成任务创建、实时监控、停止和 Retry。
+FFPanel 将本地目录与已有的 [rclone](https://rclone.org/) remote 统一为任务输入/输出，在 ARM64 上使用 [ffmpeg-rockchip](https://github.com/nyanmisaka/ffmpeg-rockchip)，在 AMD64 上使用支持 NVENC/NVDEC、QSV/VAAPI 的上游 FFmpeg，并通过 SQLite 保存文件级状态与可恢复检查点。它适合部署在家庭服务器、NAS 或边缘设备上，通过浏览器完成任务创建、实时监控、停止和 Retry。
 
 ## 核心能力
 
 - 四步任务向导：输入/输出位置、编解码方案、画质策略、扫描确认。
 - 支持本地目录和 rclone remote 的任意输入/输出组合，递归扫描并保留相对目录结构。
-- Rockchip MPP/RGA、CPU + MPP、纯 CPU 三档编解码模式，可按策略自动退回。
+- Rockchip MPP/RGA、NVIDIA NVENC/NVDEC、Intel QSV/VAAPI 与 CPU 编解码；支持硬解、CPU 软解＋硬编及按策略自动退回。
+- 前端按设备能力动态显示方案与状态，部署级选择 GPU，按 H.264/HEVC 分别判断可用性。
 - 智能分辨率与码率决策：不放大低规格源视频，并可按源码率限制目标码率。
 - 字幕、封面、NFO 等伴随文件的三档复制策略：不复制、仅复制字幕、复制全部非视频文件。
 - 固定一个 FFmpeg 转码槽位和一个传输槽位；远程输出上传时可与下一文件转码流水线并行。
@@ -53,9 +54,11 @@ FFPanel 将本地目录与已有的 [rclone](https://rclone.org/) remote 统一�
 - 宿主机能够提供 `/dev/dri`、`/dev/dma_heap`、`/dev/rga`、`/dev/mpp_service` 等设备节点。
 - 如果需要远程存储，准备好宿主机侧的 `rclone.conf`。
 
-Docker 镜像面向 `linux/arm64` 构建。首次构建会编译 MPP、RGA 和 ffmpeg-rockchip，耗时可能较长；不依赖宿主机安装 FFmpeg。
+默认 Dockerfile 保留 `linux/arm64` 构建；`Dockerfile.amd64` 提供 NVIDIA/Intel/CPU 支持。首次构建会编译 MPP、RGA 和 ffmpeg-rockchip，耗时可能较长；不依赖宿主机安装 FFmpeg。
 
-仓库的 GitHub Actions 会在 push 和 Pull Request 时构建 `linux/arm64` 镜像，并在默认分支或 `v*` 版本标签上发布镜像。
+仓库的 GitHub Actions 会在 push 和 Pull Request 时分别构建与验证 `linux/arm64`、`linux/amd64` 镜像，并在默认分支或 `v*` 版本标签上合并发布多架构镜像。
+
+Intel、NVIDIA 和 CPU 的独立 Compose 入口、驱动要求与严格验证命令见 [GPU 部署与验证](docs/GPU部署与验证.md)。
 
 ### 启动
 
@@ -85,7 +88,7 @@ docker compose down
 
 ### 启用认证
 
-编辑 `docker-compose.yml` 中的 `environment`，再启动或重启容器：
+编辑 `docker-compose.common.yml` 中的 `environment`，或使用同名环境变量，再启动或重启容器：
 
 ```yaml
 FFPANEL_AUTH_ENABLED: "true"
@@ -103,7 +106,7 @@ FFPanel 只读取已有的 rclone 配置，不负责创建 remote、修改配置
 
 ## 本地开发
 
-本地开发可在非 RK3588 平台进行 API/UI 开发和测试；MPP/RGA 能力验证必须在目标设备上完成。
+本地开发可在非 RK3588 平台进行 API/UI 开发和测试；MPP/RGA、NVENC/NVDEC、QSV/VAAPI 实机能力验证必须在对应目标设备上完成。
 
 ### 安装依赖
 
@@ -124,6 +127,8 @@ cd ..
 ```
 
 非容器运行时需要自行安装并确保 `ffmpeg`、`ffprobe` 在 `PATH` 中；使用 rclone remote 时还需要安装 `rclone` 并设置配置文件路径。
+
+Intel、NVIDIA 和 CPU 的独立 Compose 入口、驱动要求与严格验证命令见 [GPU 部署与验证](docs/GPU部署与验证.md)。
 
 ### 启动开发服务
 
@@ -156,7 +161,7 @@ npm run dev
 
 ## 配置参考
 
-所有配置项均使用 `FFPANEL_` 前缀，可通过环境变量或仓库根目录的 `.env` 设置。Compose 部署建议直接修改 `docker-compose.yml` 的 `environment` 区块。
+所有配置项均使用 `FFPANEL_` 前缀，可通过环境变量或仓库根目录的 `.env` 设置。Compose 部署使用 `docker-compose.common.yml` 的公共配置及所选硬件配置；设备变量见 [GPU 部署与验证](docs/GPU部署与验证.md)。
 
 | 配置项 | 默认值 | 说明 |
 | --- | --- | --- |

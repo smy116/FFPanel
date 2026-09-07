@@ -15,6 +15,8 @@ from .hardware.compat import (
     mock_snapshot,
     restore_video_plan,
 )
+from .hardware.detection import capture as capture_hardware
+from .hardware.detection import probe_runtime
 from .hardware.types import FFmpegInventory, MediaError, VideoRequest, VideoSettings
 from .schemas import TranscodeParams
 
@@ -35,15 +37,23 @@ async def detect_capabilities(settings: Settings) -> CapabilitySnapshot:
             _capture([settings.ffmpeg_path, "-hide_banner", "-filters"]),
         )
         devices = {path: Path(path).exists() for path in registry.device_paths}
+        try:
+            hwaccels = await capture_hardware(
+                [settings.ffmpeg_path, "-hide_banner", "-hwaccels"], settings.hardware_probe_timeout_seconds)
+        except (OSError, MediaError, TimeoutError):
+            hwaccels = ""
+        devices[settings.intel_render_device] = Path(settings.intel_render_device).exists()
         inventory = FFmpegInventory(
             frozenset(re.findall(r"\b\w+\b", encoders)),
             frozenset(re.findall(r"\b\w+\b", decoders)),
             frozenset(re.findall(r"\b\w+\b", filters)),
             devices,
+            frozenset(re.findall(r"\b\w+\b", hwaccels)),
         )
+        backends = await probe_runtime(settings, registry, registry.probe(inventory))
         return legacy_snapshot(
             version.splitlines()[0], await _available(settings.rclone_path),
-            registry.probe(inventory), devices,
+            backends, devices,
         )
     except (FileNotFoundError, MediaError) as exc:
         return CapabilitySnapshot(None, False, await _available(settings.rclone_path), False, False, [], [], [], {}, str(exc))
@@ -148,6 +158,7 @@ def decide_parameters(
     backend = registry.backend_for(profile.id)
     request = VideoRequest(
         source_codec=str(video.get("codec")), video_codec=requested.video_codec,
+        pixel_format=str(video.get("pixelFormat") or "yuv420p"),
         settings=VideoSettings(
             width=target_width, height=target_height, transform_required=transform,
             rotation=rotation, normalize_sar=not math.isclose(sar, 1.0),
@@ -193,6 +204,11 @@ def decide_parameters(
         "audioCodec": {"copy": "copy", "aac": "aac", "drop": None}[requested.audio_strategy],
         "subtitleCodec": subtitle_codec,
     }
+    if plan.device is not None:
+        effective.update(hardwareDevice=plan.device, pixelFormat=plan.pixel_format)
+        if profile.backend_id == "qsv" and requested.rate_control == "vbr":
+            reasons.append(_reason("bitrateKbps", "qsv_vbr_average",
+                                   "QSV VBR 平均码率为上限的 90%，峰值保持用户码率上限"))
     return effective, reasons
 
 

@@ -1,0 +1,14 @@
+services:
+  ffpanel:
+    extends:
+      file: docker-compose.common.yml
+      service: ffpanel
+    platform: linux/amd64
+    build:
+      context: .
+      dockerfile: Dockerfile.amd64
+    devices:
+      - /dev/dri:/dev/dri
+    environment:
+      FFPANEL_INTEL_RENDER_DEVICE: "${FFPANEL_INTEL_RENDER_DEVICE:-/dev/dri/renderD128}"
+      LIBVA_DRIVER_NAME: iHD

@@ -169,6 +169,7 @@ class RuntimeCapability(Base):
     decoders_json: Mapped[list[str]] = mapped_column(JSON, default=list)
     filters_json: Mapped[list[str]] = mapped_column(JSON, default=list)
     devices_json: Mapped[dict[str, bool]] = mapped_column(JSON, default=dict)
+    hardware_json: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
     error: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
 

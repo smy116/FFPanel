@@ -1,0 +1,19 @@
+services:
+  ffpanel:
+    extends:
+      file: docker-compose.common.yml
+      service: ffpanel
+    platform: linux/amd64
+    build:
+      context: .
+      dockerfile: Dockerfile.amd64
+    environment:
+      FFPANEL_NVIDIA_DEVICE: "${FFPANEL_NVIDIA_DEVICE:-0}"
+      NVIDIA_DRIVER_CAPABILITIES: compute,video,utility
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              device_ids: ["${NVIDIA_GPU_ID:-0}"]
+              capabilities: [gpu]

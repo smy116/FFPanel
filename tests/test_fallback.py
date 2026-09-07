@@ -17,9 +17,14 @@ from ffpanel.schemas import TranscodeParams
 
 
 def _mode_from_argv(argv: list[str]) -> str:
+    encoder = argv[argv.index("-c:v") + 1]
+    for suffix, hardware, software in (("_nvenc", "nvdec_nvenc", "cpu_nvenc"),
+                                       ("_qsv", "qsv_qsv", "cpu_qsv"),
+                                       ("_vaapi", "vaapi_vaapi", "cpu_vaapi")):
+        if encoder.endswith(suffix):
+            return hardware if "-hwaccel" in argv else software
     if "-hwaccel" in argv:
         return "mpp_mpp"
-    encoder = argv[argv.index("-c:v") + 1]
     return "cpu_mpp" if encoder.endswith("_rkmpp") else "cpu_cpu"
 
 
@@ -297,10 +302,13 @@ def test_all_fallback_modes_report_an_aggregated_failure(
     assert not list((tmp_path / "media" / "output").glob(".ffpanel-*.part.*"))
 
 
+@pytest.mark.parametrize("mode", ["mpp_mpp", "nvdec_nvenc", "qsv_qsv", "vaapi_vaapi"])
 def test_stop_does_not_start_the_next_fallback_mode(
     settings: Settings,
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
+    gpu_snapshot,
+    mode,
 ) -> None:
     modes: list[str] = []
     started = threading.Event()
@@ -322,8 +330,11 @@ def test_stop_does_not_start_the_next_fallback_mode(
         return -15, "terminated"
 
     monkeypatch.setattr(Scheduler, "_run_ffmpeg", fake_run)
+    async def detect(_):
+        return gpu_snapshot
+    monkeypatch.setattr(scheduler_module, "detect_capabilities", detect)
     with TestClient(create_app(settings)) as client:
-        task_id = _create_task(client, tmp_path / "media", auto_fallback=True)
+        task_id = _create_task(client, tmp_path / "media", auto_fallback=True, hardware_mode=mode)
         deadline = time.monotonic() + 2
         while time.monotonic() < deadline and not started.is_set():
             time.sleep(0.01)
@@ -337,5 +348,50 @@ def test_stop_does_not_start_the_next_fallback_mode(
                 break
             time.sleep(0.02)
 
-    assert modes == ["mpp_mpp"]
+    assert modes == [mode]
     assert stage == "interrupted"
+
+
+@pytest.mark.parametrize("mode,chain", [
+    ("nvdec_nvenc", ["nvdec_nvenc", "cpu_nvenc", "cpu_cpu"]),
+    ("qsv_qsv", ["qsv_qsv", "cpu_qsv", "vaapi_vaapi", "cpu_vaapi", "cpu_cpu"]),
+    ("vaapi_vaapi", ["vaapi_vaapi", "cpu_vaapi", "cpu_cpu"]),
+])
+@pytest.mark.parametrize("fallback", [True, False])
+def test_gpu_fallback_cleanup_and_retry(settings, tmp_path, monkeypatch, gpu_snapshot, mode, chain, fallback):
+    calls = []
+    retry = False
+
+    async def detect(_):
+        return gpu_snapshot
+
+    async def run(self, task_id, file_id, argv, duration_ms, input_path, output_path):
+        actual = _mode_from_argv(argv)
+        calls.append(actual)
+        assert not output_path.exists(), "failed output must be cleaned before the next mode"
+        with self.sessions() as session:
+            item = session.get(TaskFile, file_id)
+            assert item.progress_json is None
+        output_path.write_bytes(b"output")
+        if actual == "cpu_cpu" or retry:
+            await self._progress(task_id, file_id, {"percent": 100.0, "progress": "end"}, persist=True)
+        return (0, "") if actual == "cpu_cpu" or retry else (1, "GPU execution failure")
+
+    monkeypatch.setattr(scheduler_module, "detect_capabilities", detect)
+    monkeypatch.setattr(Scheduler, "_run_ffmpeg", run)
+    with TestClient(create_app(settings)) as client:
+        task_id = _create_task(client, tmp_path / "media", auto_fallback=fallback, hardware_mode=mode)
+        task = _wait_for_task(client, task_id)
+        assert task["status"] == ("completed" if fallback else "failed")
+        assert calls == (chain if fallback else [mode])
+        item = client.get(f"/api/v1/tasks/{task_id}/files").json()["items"][0]
+        assert item["parameterDecision"]["requested"]["hardwareMode"] == mode
+        assert item["attempt"] == 1
+        if fallback:
+            assert item["parameterDecision"]["effective"]["hardwareMode"] == "cpu_cpu"
+            assert len([reason for reason in item["parameterDecision"]["reasons"] if reason["code"] == "transcode_auto_fallback"]) == len(chain) - 1
+        else:
+            retry = True
+            assert client.post(f"/api/v1/tasks/{task_id}/retry").status_code == 200
+            assert _wait_for_task(client, task_id)["status"] == "completed"
+            assert calls == [mode, mode]

@@ -1,8 +1,7 @@
 """Initial FFPanel schema."""
 from alembic import op
-
-from ffpanel.db import Base
 from ffpanel import models  # noqa: F401
+from ffpanel.db import Base
 
 revision = "0001_initial"
 down_revision = None

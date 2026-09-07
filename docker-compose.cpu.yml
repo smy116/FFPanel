@@ -1,0 +1,9 @@
+services:
+  ffpanel:
+    extends:
+      file: docker-compose.common.yml
+      service: ffpanel
+    platform: ${FFPANEL_PLATFORM:-linux/amd64}
+    build:
+      context: .
+      dockerfile: ${FFPANEL_DOCKERFILE:-Dockerfile.amd64}

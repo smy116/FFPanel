@@ -332,6 +332,65 @@ export interface components {
          * @enum {string}
          */
         FileStage: "pending" | "downloading" | "probing" | "transcoding" | "upload_queued" | "uploading" | "completed" | "failed" | "interrupted" | "skipped";
+        /** HardwareBackendResponse */
+        HardwareBackendResponse: {
+            /** Id */
+            id: string;
+            /** Label */
+            label: string;
+            /** Group */
+            group: string;
+            /** Detected */
+            detected: boolean;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "detecting" | "ready" | "partial" | "unavailable";
+            /** Device */
+            device?: string | null;
+            /** Features */
+            features: {
+                [key: string]: boolean;
+            };
+            /** Errors */
+            errors: {
+                [key: string]: string;
+            };
+            /** Encoders */
+            encoders: string[];
+            /** Decoders */
+            decoders: string[];
+            /** Filters */
+            filters: string[];
+        };
+        /** HardwareProfileResponse */
+        HardwareProfileResponse: {
+            /**
+             * Id
+             * @enum {string}
+             */
+            id: "mpp_mpp" | "cpu_mpp" | "cpu_cpu" | "nvdec_nvenc" | "cpu_nvenc" | "qsv_qsv" | "cpu_qsv" | "vaapi_vaapi" | "cpu_vaapi";
+            /** Label */
+            label: string;
+            /** Backendid */
+            backendId: string;
+            /**
+             * Decodemode
+             * @enum {string}
+             */
+            decodeMode: "hardware" | "software";
+            /** Fallback */
+            fallback?: ("mpp_mpp" | "cpu_mpp" | "cpu_cpu" | "nvdec_nvenc" | "cpu_nvenc" | "qsv_qsv" | "cpu_qsv" | "vaapi_vaapi" | "cpu_vaapi") | null;
+            /** Detected */
+            detected: boolean;
+            /** Available */
+            available: boolean;
+            /** Codecs */
+            codecs: ("h264" | "hevc")[];
+            /** Reason */
+            reason?: string | null;
+        };
         /** LogEntryResponse */
         LogEntryResponse: {
             /** Level */
@@ -421,6 +480,16 @@ export interface components {
             mppAvailable: boolean;
             /** Rgaavailable */
             rgaAvailable: boolean;
+            /** Hardwarebackends */
+            hardwareBackends?: components["schemas"]["HardwareBackendResponse"][];
+            /** Hardwareprofiles */
+            hardwareProfiles?: components["schemas"]["HardwareProfileResponse"][];
+            /**
+             * Recommendedhardwaremode
+             * @default cpu_cpu
+             * @enum {string}
+             */
+            recommendedHardwareMode: "mpp_mpp" | "cpu_mpp" | "cpu_cpu" | "nvdec_nvenc" | "cpu_nvenc" | "qsv_qsv" | "cpu_qsv" | "vaapi_vaapi" | "cpu_vaapi";
             /** Encoders */
             encoders: string[];
             /** Decoders */
@@ -612,7 +681,7 @@ export interface components {
              * @default mpp_mpp
              * @enum {string}
              */
-            hardwareMode: "mpp_mpp" | "cpu_mpp" | "cpu_cpu";
+            hardwareMode: "mpp_mpp" | "cpu_mpp" | "cpu_cpu" | "nvdec_nvenc" | "cpu_nvenc" | "qsv_qsv" | "cpu_qsv" | "vaapi_vaapi" | "cpu_vaapi";
             /**
              * Autofallback
              * @default true

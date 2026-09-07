@@ -5,7 +5,7 @@ build-backend = "hatchling.build"
 [project]
 name = "ffpanel"
 version = "1.0.0"
-description = "RK3588 batch transcoding control panel"
+description = "Multi-backend GPU and CPU batch transcoding control panel"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [

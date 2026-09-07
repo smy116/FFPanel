@@ -1,0 +1,25 @@
+services:
+  ffpanel:
+    image: ${FFPANEL_IMAGE:-ghcr.io/smy116/ffpanel:latest}
+    restart: unless-stopped
+    environment:
+      FFPANEL_HOST: "0.0.0.0"
+      FFPANEL_PORT: "8090"
+      FFPANEL_CONFIG_DIR: "/config"
+      FFPANEL_CACHE_DIR: "/cache"
+      FFPANEL_LOCAL_ROOTS: "/media"
+      FFPANEL_RCLONE_CONFIG: "/config/rclone/rclone.conf"
+      FFPANEL_FFMPEG_PATH: "ffmpeg"
+      FFPANEL_FFPROBE_PATH: "ffprobe"
+      FFPANEL_RCLONE_PATH: "rclone"
+      FFPANEL_AUTH_ENABLED: "${FFPANEL_AUTH_ENABLED:-false}"
+      FFPANEL_AUTH_USERNAME: "${FFPANEL_AUTH_USERNAME:-}"
+      FFPANEL_AUTH_PASSWORD: "${FFPANEL_AUTH_PASSWORD:-}"
+      FFPANEL_LOG_LEVEL: "INFO"
+    ports:
+      - "8090:8090"
+    volumes:
+      - ./config:/config
+      - ./cache:/cache
+      - ./media:/media
+    stop_grace_period: 20s

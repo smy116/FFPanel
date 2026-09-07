@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Literal, Protocol
 
 from ..schemas import FrameRate, RateControl, VideoCodec
@@ -20,6 +20,7 @@ class FFmpegInventory:
     decoders: frozenset[str]
     filters: frozenset[str]
     devices: dict[str, bool]
+    hwaccels: frozenset[str] = frozenset()
 
 
 @dataclass(frozen=True, slots=True)
@@ -30,6 +31,9 @@ class BackendCapabilities:
     filters: frozenset[str]
     devices: dict[str, bool]
     features: dict[str, bool]
+    device: str | None = None
+    detected: bool = False
+    errors: dict[str, str] = field(default_factory=dict)
 
 
 @dataclass(frozen=True, slots=True)
@@ -58,6 +62,7 @@ class VideoRequest:
     source_codec: str
     video_codec: VideoCodec
     settings: VideoSettings
+    pixel_format: str = "yuv420p"
 
 
 @dataclass(frozen=True, slots=True)
@@ -66,6 +71,8 @@ class VideoPlan:
     encoder: str
     settings: VideoSettings
     scale_filter: str | None
+    device: str | None = None
+    pixel_format: str | None = None
 
 
 @dataclass(frozen=True, slots=True)

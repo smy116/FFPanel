@@ -277,8 +277,14 @@ async def test_capability_detection_preserves_commands_and_public_snapshot(
         assert binary == "rclone"
         return True
 
+    async def capture_hwaccels(argv: list[str], timeout: float) -> str:
+        assert argv == ["ffmpeg", "-hide_banner", "-hwaccels"]
+        assert timeout > 0
+        return "cuda qsv vaapi"
+
     monkeypatch.setattr(media, "_capture", capture)
     monkeypatch.setattr(media, "_available", available)
+    monkeypatch.setattr(media, "capture_hardware", capture_hwaccels)
     monkeypatch.setattr(
         Path,
         "exists",
@@ -297,17 +303,19 @@ async def test_capability_detection_preserves_commands_and_public_snapshot(
         ["ffmpeg", "-hide_banner", "-decoders"],
         ["ffmpeg", "-hide_banner", "-filters"],
     ]
-    assert snapshot.as_dict() == {
+    public = snapshot.as_dict()
+    assert {key: value for key, value in public.items() if key not in {
+        "hardwareBackends", "hardwareProfiles", "recommendedHardwareMode"}} == {
         "ffmpegVersion": "ffmpeg test",
         "ffprobeAvailable": True,
         "rcloneAvailable": True,
         "mppAvailable": True,
         "rgaAvailable": True,
-        "encoders": ["h264_rkmpp", "hevc_rkmpp", "libx264", "libx265"],
-        "decoders": ["h264_rkmpp"],
-        "filters": ["scale_rkrga", "vpp_rkrga"],
+        "encoders": ["h264_nvenc", "h264_rkmpp", "hevc_rkmpp", "libx264", "libx265"],
+        "decoders": ["h264", "h264_rkmpp"],
+        "filters": ["scale_cuda", "scale_rkrga", "vpp_rkrga"],
         "devices": {
-            path: path in {"/dev/mpp_service", "/dev/rga"} for path in registry.device_paths
+            path: path in {"/dev/mpp_service", "/dev/rga"} for path in (*registry.device_paths, "/dev/dri/renderD128")
         },
         "error": None,
     }
@@ -320,8 +328,11 @@ async def test_mock_capabilities_need_no_device_or_subprocess(
         pytest.fail("mock mode must not spawn a process")
 
     monkeypatch.setattr(media, "_capture", unexpected)
+    monkeypatch.setattr(media, "capture_hardware", unexpected)
     snapshot = await media.detect_capabilities(Settings(mock_media=True))
-    assert snapshot.as_dict() == {
+    public = snapshot.as_dict()
+    assert {key: value for key, value in public.items() if key not in {
+        "hardwareBackends", "hardwareProfiles", "recommendedHardwareMode"}} == {
         "ffmpegVersion": "mock-1.0",
         "ffprobeAvailable": True,
         "rcloneAvailable": False,
