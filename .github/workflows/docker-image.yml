@@ -39,7 +39,7 @@ jobs:
         include:
           - arch: arm64
             runner: ubuntu-24.04-arm
-            dockerfile: Dockerfile
+            dockerfile: Dockerfile.arm64
           - arch: amd64
             runner: ubuntu-24.04
             dockerfile: Dockerfile.amd64
