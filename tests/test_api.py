@@ -73,6 +73,32 @@ def test_same_source_destination_is_rejected(settings: Settings, tmp_path: Path)
         assert response.json()["code"] == "same_source_destination"
 
 
+def test_unconfigured_remote_destination_is_rejected(settings: Settings, tmp_path: Path) -> None:
+    media = tmp_path / "media"
+    source = media / "input"
+    source.mkdir()
+    (source / "one.mp4").write_bytes(b"video")
+    with TestClient(create_app(settings)) as client:
+        scan = client.post(
+            "/api/v1/storage/scan",
+            json={
+                "source": {"kind": "local", "path": str(source)},
+                "companionFilePolicy": "none",
+            },
+        ).json()
+        payload = request_payload(media, scan["scanToken"])
+        payload["source"]["path"] = str(source)
+        payload["destination"] = {
+            "kind": "rclone",
+            "remote": ":local",
+            "path": "../outside",
+        }
+        response = client.post("/api/v1/tasks", json=payload)
+
+        assert response.status_code == 422
+        assert response.json()["code"] == "remote_not_allowed"
+
+
 def test_basic_auth_protects_ui_and_api(tmp_path: Path) -> None:
     media = tmp_path / "media"
     media.mkdir()

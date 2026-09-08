@@ -28,6 +28,33 @@ async def test_local_scan_and_companion_policies(settings, tmp_path: Path) -> No
     assert sum(companion_selected(entry, "all_non_video") for entry in entries) == 2
 
 
+@pytest.mark.asyncio
+async def test_rclone_locations_are_limited_to_configured_remotes(
+    settings,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    service = StorageService(settings)
+    calls: list[list[str]] = []
+
+    async def list_remotes() -> list[str]:
+        return ["media"]
+
+    async def run_json(argv: list[str]) -> list[dict]:
+        calls.append(argv)
+        return []
+
+    monkeypatch.setattr(service, "list_remotes", list_remotes)
+    monkeypatch.setattr(service, "_run_json", run_json)
+
+    assert await service.browse(StorageLocation(kind="rclone", remote="media", path="shows")) == []
+    assert calls[0][2] == "media:shows"
+
+    for remote in (":local", "media,skip_links", "missing"):
+        with pytest.raises(StorageError) as error:
+            await service.browse(StorageLocation(kind="rclone", remote=remote, path="../outside"))
+        assert error.value.code == "remote_not_allowed"
+
+
 def test_path_traversal_is_rejected(settings, tmp_path: Path) -> None:
     service = StorageService(settings)
     with pytest.raises(StorageError, match="允许"):

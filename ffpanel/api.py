@@ -99,6 +99,10 @@ async def scan(payload: ScanRequest, request: Request) -> ScanSummary:
 @router.post("/tasks", status_code=201, response_model=TaskResponse)
 async def create_task(payload: CreateTaskRequest, request: Request, session: Session = Depends(get_db)) -> dict[str, Any]:
     storage = request.app.state.storage
+    if payload.source.kind == StorageKind.RCLONE:
+        await storage.validate_remote(payload.source)
+    if payload.destination.kind == StorageKind.RCLONE:
+        await storage.validate_remote(payload.destination)
     if _locations_equal(payload.source, payload.destination, storage):
         raise HTTPException(status_code=409, detail={"code": "same_source_destination", "message": "输入和输出位置不能相同"})
     record = request.app.state.scans.consume(payload.scan_token, payload.source, payload.companion_file_policy)
@@ -209,8 +213,19 @@ async def stop_task(task_id: str, request: Request, session: Session = Depends(g
 
 @router.post("/tasks/{task_id}/retry", response_model=TaskResponse)
 async def retry_task(task_id: str, request: Request, session: Session = Depends(get_db)) -> dict[str, Any]:
+    retryable = {
+        TaskStatus.INTERRUPTED.value,
+        TaskStatus.FAILED.value,
+        TaskStatus.PARTIAL_FAILED.value,
+        TaskStatus.STOPPED.value,
+    }
     task = get_task_or_404(session, task_id)
-    if task.status not in {TaskStatus.INTERRUPTED.value, TaskStatus.FAILED.value, TaskStatus.PARTIAL_FAILED.value, TaskStatus.STOPPED.value}:
+    if task.status not in retryable:
+        raise HTTPException(status_code=409, detail={"code": "task_not_retryable", "message": "当前任务状态不能 Retry"})
+    await request.app.state.scheduler.wait_task_idle(task_id)
+    session.expire_all()
+    task = get_task_or_404(session, task_id)
+    if task.status not in retryable:
         raise HTTPException(status_code=409, detail={"code": "task_not_retryable", "message": "当前任务状态不能 Retry"})
     previous_error = task.last_error or task.interrupted_reason
     task.retry_count += 1

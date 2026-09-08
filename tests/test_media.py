@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 from pathlib import Path
 from typing import Literal
 
@@ -101,6 +102,51 @@ async def test_probe_media_ignores_ffprobe_diagnostics_from_stderr(
     result = await probe_media(Settings(mock_media=False), input_path)
 
     assert result["video"]["codec"] == "h264"
+
+
+async def test_probe_cancellation_kills_process_and_clears_observer(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    input_path = tmp_path / "input.mkv"
+    input_path.write_bytes(b"video")
+    release = asyncio.Event()
+
+    class FakeProcess:
+        returncode: int | None = None
+        killed = False
+
+        async def communicate(self) -> tuple[bytes, bytes]:
+            await release.wait()
+            return b"", b""
+
+        def kill(self) -> None:
+            self.killed = True
+            self.returncode = -9
+            release.set()
+
+    process = FakeProcess()
+
+    async def fake_create_subprocess_exec(*args: object, **kwargs: object) -> FakeProcess:
+        del args, kwargs
+        return process
+
+    observed: list[object | None] = []
+    monkeypatch.setattr(media_module.asyncio, "create_subprocess_exec", fake_create_subprocess_exec)
+    probe = asyncio.create_task(
+        probe_media(
+            Settings(mock_media=False),
+            input_path,
+            process_observer=observed.append,
+        )
+    )
+    await asyncio.sleep(0)
+    probe.cancel()
+    with pytest.raises(asyncio.CancelledError):
+        await probe
+
+    assert process.killed
+    assert observed == [process, None]
 
 
 def test_full_hardware_rotation_uses_rga_vpp_without_autorotate() -> None:

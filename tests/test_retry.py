@@ -95,3 +95,51 @@ def test_retry_recounts_pending_and_conflicting_files(settings, monkeypatch, con
         assert bool(value["lastError"]) == conflict
         if conflict:
             assert (destination / "retry.mp4").read_bytes() == b"existing"
+
+
+def test_successful_remote_upload_cleans_input_and_output_cache(settings, monkeypatch) -> None:
+    monkeypatch.setattr(Scheduler, "_next_transcode_id", lambda self: None)
+    monkeypatch.setattr(Scheduler, "_next_transfer", lambda self: None)
+    app = create_app(settings)
+    with TestClient(app) as client:
+        input_cache = settings.cache_dir / "tasks" / "cache-test" / "input" / "movie.mkv"
+        artifact = settings.cache_dir / "tasks" / "cache-test" / "output" / "movie.mp4"
+        input_cache.parent.mkdir(parents=True)
+        artifact.parent.mkdir(parents=True)
+        input_cache.write_bytes(b"source")
+        artifact.write_bytes(b"output")
+        with app.state.sessions() as session:
+            task = Task(
+                name="remote cache",
+                status="running",
+                total_files=1,
+                source_json={"kind": "rclone", "remote": "source", "path": "incoming"},
+                destination_json={"kind": "rclone", "remote": "destination", "path": "encoded"},
+                requested_params_json=TranscodeParams().model_dump(mode="json", by_alias=True),
+            )
+            task.files = [
+                TaskFile(
+                    relative_path="movie.mkv",
+                    stage="upload_queued",
+                    input_cache_path=str(input_cache),
+                    completed_artifact_path=str(artifact),
+                    final_output_path="movie.mp4",
+                    artifact_size=artifact.stat().st_size,
+                )
+            ]
+            session.add(task)
+            session.commit()
+            item_id = task.files[0].id
+
+        async def upload_artifact(*args, **kwargs) -> str:
+            return "destination:encoded/movie.mp4"
+
+        monkeypatch.setattr(app.state.storage, "upload_artifact", upload_artifact)
+        client.portal.call(app.state.scheduler._process_upload, item_id)
+
+        assert not input_cache.exists()
+        assert not artifact.exists()
+        with app.state.sessions() as session:
+            item = session.get(TaskFile, item_id)
+            assert item is not None
+            assert item.stage == "completed"

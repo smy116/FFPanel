@@ -86,6 +86,9 @@ class StorageService:
     def __init__(self, settings: Settings) -> None:
         self.settings = settings
         self.process_observer: Callable[[str, str, asyncio.subprocess.Process | None], None] | None = None
+        self._remote_names: tuple[str, ...] | None = None
+        self._remote_config_stamp: tuple[int, int] | None = None
+        self._remote_lock = asyncio.Lock()
 
     def validate_local(self, value: str, *, allow_missing: bool = False) -> Path:
         raw = Path(value)
@@ -105,10 +108,24 @@ class StorageService:
     def rclone_ref(location: StorageLocation, relative_path: str = "") -> str:
         if location.kind != StorageKind.RCLONE or not location.remote:
             raise StorageError("storage_invalid", "不是有效的 rclone 位置")
+        StorageService._validate_remote_name(location.remote)
         base = location.path.strip("/")
         rel = relative_path.strip("/")
         joined = "/".join(value for value in (base, rel) if value)
         return f"{location.remote}:{joined}" if joined else f"{location.remote}:"
+
+    @staticmethod
+    def _validate_remote_name(remote: str) -> None:
+        if remote != remote.strip() or any(character in remote for character in ":,\r\n"):
+            raise StorageError("remote_not_allowed", "rclone remote 未配置或不允许使用")
+
+    async def validate_remote(self, location: StorageLocation) -> str:
+        if location.kind != StorageKind.RCLONE or not location.remote:
+            raise StorageError("storage_invalid", "不是有效的 rclone 位置")
+        self._validate_remote_name(location.remote)
+        if location.remote not in await self.list_remotes():
+            raise StorageError("remote_not_allowed", f"rclone remote 未配置或不允许使用：{location.remote}")
+        return location.remote
 
     def local_path(self, location: StorageLocation, relative_path: str = "", *, allow_missing: bool = False) -> Path:
         if location.kind != StorageKind.LOCAL:
@@ -121,15 +138,38 @@ class StorageService:
         return target
 
     async def list_remotes(self) -> list[str]:
-        if not self.settings.rclone_config.is_file():
-            return []
         try:
-            output = await self._run([
-                self.settings.rclone_path, "listremotes", "--config", str(self.settings.rclone_config)
-            ])
-        except (StorageError, FileNotFoundError):
+            config_stat = self.settings.rclone_config.stat()
+        except OSError:
+            self._remote_names = None
+            self._remote_config_stamp = None
             return []
-        return [line.rstrip(":") for line in output.splitlines() if line.strip()]
+        stamp = (config_stat.st_mtime_ns, config_stat.st_size)
+        async with self._remote_lock:
+            if self._remote_names is not None and self._remote_config_stamp == stamp:
+                return list(self._remote_names)
+            try:
+                output = await self._run([
+                    self.settings.rclone_path, "listremotes", "--config",
+                    str(self.settings.rclone_config),
+                ])
+            except (StorageError, FileNotFoundError):
+                self._remote_names = None
+                self._remote_config_stamp = None
+                return []
+            names: list[str] = []
+            for line in output.splitlines():
+                value = line.strip()
+                name = value.removesuffix(":")
+                try:
+                    self._validate_remote_name(name)
+                except StorageError:
+                    continue
+                if name:
+                    names.append(name)
+            self._remote_names = tuple(names)
+            self._remote_config_stamp = stamp
+            return names.copy()
 
     async def browse(self, location: StorageLocation) -> list[dict[str, Any]]:
         if location.kind == StorageKind.LOCAL:
@@ -148,6 +188,7 @@ class StorageService:
                 if not entry.name.startswith(".ffpanel-")
             ]
 
+        await self.validate_remote(location)
         result = await self._run_json([
             self.settings.rclone_path, "lsjson", self.rclone_ref(location), "--max-depth", "1",
             "--config", str(self.settings.rclone_config),
@@ -181,6 +222,7 @@ class StorageService:
                     entries.append(self._entry(relative, stat.st_size, stat.st_mtime_ns))
             return sorted(entries, key=lambda entry: entry.relative_path.lower())
 
+        await self.validate_remote(source)
         result = await self._run_json([
             self.settings.rclone_path, "lsjson", self.rclone_ref(source), "--recursive", "--files-only",
             "--config", str(self.settings.rclone_config),
@@ -208,6 +250,7 @@ class StorageService:
         if source.kind == StorageKind.LOCAL:
             shutil.copy2(self.local_path(source, relative_path), destination)
             return
+        await self.validate_remote(source)
         await self._run([
             self.settings.rclone_path, "copyto", self.rclone_ref(source, relative_path), str(destination),
             "--config", str(self.settings.rclone_config), "--no-traverse",
@@ -223,6 +266,10 @@ class StorageService:
         cancel_check: Callable[[], bool] | None = None,
     ) -> str:
         relative_path = self.validate_relative(relative_path)
+        if source.kind == StorageKind.RCLONE:
+            await self.validate_remote(source)
+        if destination.kind == StorageKind.RCLONE:
+            await self.validate_remote(destination)
         if await self.exists(destination, relative_path):
             raise StorageError("output_conflict", f"目标文件已存在：{relative_path}")
         token = uuid.uuid4().hex[:10]
@@ -270,6 +317,7 @@ class StorageService:
         cancel_check: Callable[[], bool] | None = None,
     ) -> str:
         relative_path = self.validate_relative(relative_path)
+        await self.validate_remote(destination)
         if await self.exists(destination, relative_path):
             raise StorageError("output_conflict", f"目标文件已存在：{relative_path}")
         temp_relative = self._temp_relative(relative_path, uuid.uuid4().hex[:10])
@@ -295,6 +343,7 @@ class StorageService:
                 return None
             value = path.stat()
             return {"size": value.st_size, "modifiedAt": datetime.fromtimestamp(value.st_mtime, UTC).isoformat()}
+        await self.validate_remote(destination)
         try:
             output = await self._run([
                 self.settings.rclone_path, "lsjson", self.rclone_ref(destination, relative_path),

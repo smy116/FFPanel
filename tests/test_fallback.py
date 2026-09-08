@@ -112,10 +112,10 @@ def test_runtime_failures_fall_back_to_cpu_and_preserve_one_file_attempt(
     probe_count = 0
     original_probe = scheduler_module.probe_media
 
-    async def counting_probe(settings: Settings, path: Path) -> dict:
+    async def counting_probe(settings: Settings, path: Path, **kwargs) -> dict:
         nonlocal probe_count
         probe_count += 1
-        return await original_probe(settings, path)
+        return await original_probe(settings, path, **kwargs)
 
     async def fake_run(
         self: Scheduler,
@@ -350,6 +350,51 @@ def test_stop_does_not_start_the_next_fallback_mode(
 
     assert modes == [mode]
     assert stage == "interrupted"
+
+
+def test_stop_waits_for_the_active_file_operation(
+    settings: Settings,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    entered = threading.Event()
+    release = threading.Event()
+    original_probe = scheduler_module.probe_media
+
+    async def blocking_probe(settings: Settings, path: Path, **kwargs) -> dict:
+        entered.set()
+        await asyncio.to_thread(release.wait)
+        return await original_probe(settings, path, **kwargs)
+
+    monkeypatch.setattr(scheduler_module, "probe_media", blocking_probe)
+    with TestClient(create_app(settings)) as client:
+        task_id = _create_task(client, tmp_path / "media", auto_fallback=False)
+        assert entered.wait(timeout=2)
+        result: list[bool] = []
+        stop_thread = threading.Thread(
+            target=lambda: result.append(
+                client.portal.call(client.app.state.scheduler.stop_task, task_id)
+            )
+        )
+        stop_thread.start()
+        try:
+            deadline = time.monotonic() + 2
+            while (
+                time.monotonic() < deadline
+                and not client.app.state.scheduler._task_stop_requested(task_id)
+            ):
+                time.sleep(0.01)
+            assert client.app.state.scheduler._task_stop_requested(task_id)
+            time.sleep(0.05)
+            assert stop_thread.is_alive()
+        finally:
+            release.set()
+            stop_thread.join(timeout=2)
+
+        assert not stop_thread.is_alive()
+        assert result == [True]
+        item = client.get(f"/api/v1/tasks/{task_id}/files").json()["items"][0]
+        assert item["stage"] == "interrupted"
 
 
 @pytest.mark.parametrize("mode,chain", [

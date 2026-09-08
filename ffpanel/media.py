@@ -4,6 +4,7 @@ import asyncio
 import json
 import math
 import re
+from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
@@ -59,7 +60,12 @@ async def detect_capabilities(settings: Settings) -> CapabilitySnapshot:
         return CapabilitySnapshot(None, False, await _available(settings.rclone_path), False, False, [], [], [], {}, str(exc))
 
 
-async def probe_media(settings: Settings, path: Path) -> dict[str, Any]:
+async def probe_media(
+    settings: Settings,
+    path: Path,
+    *,
+    process_observer: Callable[[asyncio.subprocess.Process | None], None] | None = None,
+) -> dict[str, Any]:
     if settings.mock_media:
         size = path.stat().st_size if path.exists() else 8_000_000
         return {
@@ -70,9 +76,13 @@ async def probe_media(settings: Settings, path: Path) -> dict[str, Any]:
             "subtitles": [],
             "sizeBytes": size,
         }
-    output = await _capture_stdout([
-        settings.ffprobe_path, "-v", "error", "-show_streams", "-show_format", "-of", "json", str(path)
-    ])
+    output = await _capture_stdout(
+        [
+            settings.ffprobe_path, "-v", "error", "-show_streams", "-show_format", "-of",
+            "json", str(path),
+        ],
+        process_observer=process_observer,
+    )
     try:
         raw = json.loads(output)
     except json.JSONDecodeError as exc:
@@ -346,14 +356,45 @@ async def _capture(argv: list[str]) -> str:
     return await _capture_output(argv, include_stderr=True)
 
 
-async def _capture_stdout(argv: list[str]) -> str:
+async def _capture_stdout(
+    argv: list[str],
+    *,
+    process_observer: Callable[[asyncio.subprocess.Process | None], None] | None = None,
+) -> str:
     """Capture machine-readable stdout without appending diagnostic stderr."""
-    return await _capture_output(argv, include_stderr=False)
+    return await _capture_output(
+        argv,
+        include_stderr=False,
+        process_observer=process_observer,
+    )
 
 
-async def _capture_output(argv: list[str], *, include_stderr: bool) -> str:
-    process = await asyncio.create_subprocess_exec(*argv, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE)
-    stdout, stderr = await process.communicate()
+async def _capture_output(
+    argv: list[str],
+    *,
+    include_stderr: bool,
+    process_observer: Callable[[asyncio.subprocess.Process | None], None] | None = None,
+) -> str:
+    process = await asyncio.create_subprocess_exec(
+        *argv,
+        stdout=asyncio.subprocess.PIPE,
+        stderr=asyncio.subprocess.PIPE,
+    )
+    if process_observer:
+        process_observer(process)
+    try:
+        stdout, stderr = await process.communicate()
+    except BaseException:
+        if process.returncode is None:
+            try:
+                process.kill()
+            except ProcessLookupError:
+                pass
+        await process.communicate()
+        raise
+    finally:
+        if process_observer:
+            process_observer(None)
     if process.returncode != 0:
         raise MediaError("media_command_failed", stderr.decode(errors="replace").strip()[-2000:])
     output = stdout.decode(errors="replace")

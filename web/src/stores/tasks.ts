@@ -15,6 +15,7 @@ export const useTasksStore = defineStore('tasks', {
     tasks: [] as Task[], system: { ...EMPTY_SYSTEM }, metrics: { ...EMPTY_METRICS },
     remotes: [] as string[], loading: false, connected: false, error: '',
     eventSource: null as EventSource | null, retryTimer: 0, retryAttempt: 0,
+    snapshotRequest: 0,
     versions: {} as Record<string, number>,
     details: {} as Record<string, TaskDetails>,
     detailRequests: {} as Record<string, number>,
@@ -50,16 +51,45 @@ export const useTasksStore = defineStore('tasks', {
       }
     },
     async loadSnapshot() {
+      const requestId = this.snapshotRequest + 1
+      this.snapshotRequest = requestId
+      const versionsAtStart = new Map(this.tasks.map((task) => [task.id, task.version]))
       this.loading = true
       try {
         const data = await api.snapshot()
-        this.tasks = data.tasks
+        if (this.snapshotRequest !== requestId) return
+        const currentById = new Map(this.tasks.map((task) => [task.id, task]))
+        const snapshotIds = new Set(data.tasks.map((task) => task.id))
+        const tasks = data.tasks.map((incoming) => {
+          const current = currentById.get(incoming.id)
+          return current && current.version >= incoming.version
+            ? { ...incoming, ...current }
+            : incoming
+        })
+        for (const current of this.tasks) {
+          if (snapshotIds.has(current.id)) continue
+          const previousVersion = versionsAtStart.get(current.id)
+          if (previousVersion === undefined || current.version > previousVersion) tasks.push(current)
+        }
+        this.tasks = tasks
+        for (const task of tasks) {
+          for (const type of ['task.state', 'task.metrics']) {
+            const key = `${type}:${task.id}:`
+            this.versions[key] = Math.max(this.versions[key] || 0, task.version)
+          }
+        }
+        this.sortTasks()
         this.system = data.system
         this.metrics = data.metrics
+        this.updateTaskMetrics()
         this.error = ''
       } catch (error) {
-        this.error = error instanceof Error ? error.message : '无法读取任务状态'
-      } finally { this.loading = false }
+        if (this.snapshotRequest === requestId) {
+          this.error = error instanceof Error ? error.message : '无法读取任务状态'
+        }
+      } finally {
+        if (this.snapshotRequest === requestId) this.loading = false
+      }
     },
     async loadRemotes() {
       try { this.remotes = (await api.remotes()).items } catch { this.remotes = [] }
@@ -109,9 +139,7 @@ export const useTasksStore = defineStore('tasks', {
         if (index < 0) this.tasks.unshift(incoming)
         else if ((this.tasks[index]?.version || 0) <= incoming.version) this.tasks[index] = { ...this.tasks[index], ...incoming }
         this.sortTasks()
-        this.metrics.queuedTasks = this.tasks.filter((task) => task.status === 'queued').length
-        this.metrics.completedTasks = this.tasks.filter((task) => task.status === 'completed').length
-        this.metrics.completedVideos = this.tasks.reduce((total, task) => total + task.completedFiles, 0)
+        this.updateTaskMetrics()
         if (event.type === 'task.state' && details && previousRetryCount !== undefined && incoming.retryCount > previousRetryCount) {
           void this.loadDetails(event.taskId)
         }
@@ -132,6 +160,11 @@ export const useTasksStore = defineStore('tasks', {
     sortTasks() {
       const order: Record<string, number> = { running: 0, queued: 1, interrupted: 2, partial_failed: 2, failed: 2, completed: 3, stopped: 3 }
       this.tasks.sort((a, b) => (order[a.status] ?? 9) - (order[b.status] ?? 9) || Date.parse(b.createdAt) - Date.parse(a.createdAt))
+    },
+    updateTaskMetrics() {
+      this.metrics.queuedTasks = this.tasks.filter((task) => task.status === 'queued').length
+      this.metrics.completedTasks = this.tasks.filter((task) => task.status === 'completed').length
+      this.metrics.completedVideos = this.tasks.reduce((total, task) => total + task.completedFiles, 0)
     },
     async stop(taskId: string) { this.replaceTask(await api.stop(taskId)) },
     async retry(taskId: string) {

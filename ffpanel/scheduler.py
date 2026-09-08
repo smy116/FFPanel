@@ -73,6 +73,8 @@ class Scheduler:
         self._active_transfer: tuple[str, asyncio.subprocess.Process] | None = None
         self._transcode_busy_task_id: str | None = None
         self._transfer_busy_task_id: str | None = None
+        self._active_task_operations: dict[str, int] = {}
+        self._task_idle_events: dict[str, asyncio.Event] = {}
         self.storage.process_observer = self._observe_storage_process
 
     async def start(self) -> None:
@@ -187,18 +189,38 @@ class Scheduler:
             task.finished_at = utcnow()
             task.version += 1
             session.commit()
-            payload = task_dict(task)
-        processes = [active[1] for active in (self._active_transcode, self._active_transfer) if active and active[0] == task_id]
+        processes = [
+            active[1]
+            for active in (self._active_transcode, self._active_transfer)
+            if active and active[0] == task_id
+        ]
         for process in processes:
-            process.terminate()
+            if process.returncode is None:
+                with contextlib.suppress(ProcessLookupError):
+                    process.terminate()
         for process in processes:
+            if process.returncode is not None:
+                continue
             try:
                 await asyncio.wait_for(process.wait(), timeout=self.settings.stop_timeout_seconds)
             except TimeoutError:
-                process.kill()
+                with contextlib.suppress(ProcessLookupError):
+                    process.kill()
                 await process.wait()
+        await self.wait_task_idle(task_id)
+        with self.sessions() as session:
+            task = session.get(Task, task_id)
+            if not task:
+                return False
+            payload = task_dict(task)
         await self.events.publish("task.state", payload, task_id=task_id, version=payload["version"])
         return True
+
+    async def wait_task_idle(self, task_id: str) -> None:
+        if self._active_task_operations.get(task_id, 0) == 0:
+            return
+        event = self._task_idle_events[task_id]
+        await event.wait()
 
     async def _transcode_loop(self) -> None:
         while not self._stopping.is_set():
@@ -206,11 +228,16 @@ class Scheduler:
             if not item_id:
                 await asyncio.sleep(0.35)
                 continue
-            self._transcode_busy_task_id = self._task_id_for_file(item_id)
+            task_id = self._task_id_for_file(item_id)
+            if not task_id:
+                continue
+            self._transcode_busy_task_id = task_id
+            self._operation_started(task_id)
             try:
                 await self._process_transcode(item_id)
             finally:
                 self._transcode_busy_task_id = None
+                self._operation_finished(task_id)
 
     async def _transfer_loop(self) -> None:
         while not self._stopping.is_set():
@@ -219,7 +246,15 @@ class Scheduler:
                 await asyncio.sleep(0.35)
                 continue
             kind, item_id = target
-            self._transfer_busy_task_id = self._task_id_for_file(item_id) if kind == "video" else self._task_id_for_companion(item_id)
+            task_id = (
+                self._task_id_for_file(item_id)
+                if kind == "video"
+                else self._task_id_for_companion(item_id)
+            )
+            if not task_id:
+                continue
+            self._transfer_busy_task_id = task_id
+            self._operation_started(task_id)
             try:
                 if kind == "video":
                     await self._process_upload(item_id)
@@ -227,6 +262,7 @@ class Scheduler:
                     await self._process_companion(item_id)
             finally:
                 self._transfer_busy_task_id = None
+                self._operation_finished(task_id)
 
     async def _status_loop(self) -> None:
         while not self._stopping.is_set():
@@ -271,15 +307,18 @@ class Scheduler:
         return None
 
     def _remote_output_backpressured(self, session: Session) -> bool:
-        uploading = session.scalar(select(func.count()).select_from(TaskFile).where(TaskFile.stage == FileStage.UPLOADING.value)) or 0
         queued = session.scalar(select(func.count()).select_from(TaskFile).where(TaskFile.stage == FileStage.UPLOAD_QUEUED.value)) or 0
-        return uploading >= 1 and queued >= 1
+        return queued >= 1
 
     async def _process_transcode(self, item_id: str) -> None:
         try:
             with self.sessions() as session:
                 item = session.get(TaskFile, item_id)
-                if not item or item.stage != FileStage.PENDING.value:
+                if (
+                    not item
+                    or item.stage != FileStage.PENDING.value
+                    or item.task.stop_requested
+                ):
                     return
                 task = item.task
                 source = StorageLocation.model_validate(task.source_json)
@@ -305,7 +344,13 @@ class Scheduler:
             else:
                 input_path = self.storage.local_path(source, relative if Path(source.path).is_dir() else "")
 
-            source_params = await probe_media(self.settings, input_path)
+            source_params = await probe_media(
+                self.settings,
+                input_path,
+                process_observer=lambda process: self._observe_storage_process(
+                    "transcode", task_id, process
+                ),
+            )
             output_relative = str(PurePosixPath(relative).with_suffix(f".{params.container}"))
             if await self.storage.exists(destination, output_relative):
                 raise StorageError("output_conflict", f"目标文件已存在：{output_relative}")
@@ -371,7 +416,13 @@ class Scheduler:
                     if not temp_path.is_file() or temp_path.stat().st_size <= 0:
                         raise MediaError("output_invalid", "转码输出不存在或为空")
                     if not self.settings.mock_media:
-                        await probe_media(self.settings, temp_path)
+                        await probe_media(
+                            self.settings,
+                            temp_path,
+                            process_observer=lambda process: self._observe_storage_process(
+                                "transcode", task_id, process
+                            ),
+                        )
                     break
                 except asyncio.CancelledError:
                     raise
@@ -615,7 +666,11 @@ class Scheduler:
         try:
             with self.sessions() as session:
                 item = session.get(TaskFile, item_id)
-                if not item or item.stage != FileStage.UPLOAD_QUEUED.value:
+                if (
+                    not item
+                    or item.stage != FileStage.UPLOAD_QUEUED.value
+                    or item.task.stop_requested
+                ):
                     return
                 task = item.task
                 destination = StorageLocation.model_validate(task.destination_json)
@@ -627,6 +682,7 @@ class Scheduler:
                 task.version += 1
                 session.commit()
                 artifact = Path(item.completed_artifact_path)
+                input_cache = Path(item.input_cache_path) if item.input_cache_path else None
                 relative = item.final_output_path or item.relative_path
                 task_id = item.task_id
                 await self._publish_task_and_file(task, item)
@@ -650,6 +706,7 @@ class Scheduler:
                 await self._publish_file(item)
                 await self._refresh_task(session, item.task)
             self._safe_unlink(artifact)
+            self._safe_unlink(input_cache)
         except asyncio.CancelledError:
             raise
         except Exception as exc:
@@ -659,7 +716,11 @@ class Scheduler:
         try:
             with self.sessions() as session:
                 item = session.get(CompanionFile, item_id)
-                if not item or item.stage != CompanionStage.PENDING.value:
+                if (
+                    not item
+                    or item.stage != CompanionStage.PENDING.value
+                    or item.task.stop_requested
+                ):
                     return
                 task = item.task
                 item.stage = CompanionStage.COPYING.value
@@ -794,6 +855,23 @@ class Scheduler:
         with self.sessions() as session:
             return bool(session.scalar(select(Task.stop_requested).where(Task.id == task_id)))
 
+    def _operation_started(self, task_id: str) -> None:
+        event = self._task_idle_events.setdefault(task_id, asyncio.Event())
+        event.clear()
+        self._active_task_operations[task_id] = (
+            self._active_task_operations.get(task_id, 0) + 1
+        )
+
+    def _operation_finished(self, task_id: str) -> None:
+        remaining = self._active_task_operations.get(task_id, 0) - 1
+        if remaining > 0:
+            self._active_task_operations[task_id] = remaining
+            return
+        self._active_task_operations.pop(task_id, None)
+        event = self._task_idle_events.pop(task_id, None)
+        if event:
+            event.set()
+
     def _observe_storage_process(
         self,
         lane: str,
@@ -814,9 +892,12 @@ class Scheduler:
 
     @staticmethod
     def _safe_unlink(path: Path | None) -> None:
-        if path and path.is_file():
-            with contextlib.suppress(OSError):
-                path.unlink()
+        if path is None:
+            return
+        try:
+            path.unlink(missing_ok=True)
+        except OSError:
+            pass
 
     @staticmethod
     def _redact_argv(argv: list[str]) -> list[str]:
