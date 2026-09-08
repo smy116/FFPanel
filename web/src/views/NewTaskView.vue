@@ -114,7 +114,7 @@ function formatBytes(value: number) {
 <template>
   <section>
     <div class="page-heading">
-      <div><p class="eyebrow">NEW TRANSCODE JOB</p><h1>创建转码任务</h1><p>配置路径与参数，将一批视频加入持久化流水线。</p></div>
+      <div><p class="eyebrow">NEW TRANSCODE JOB</p><h1>创建转码任务</h1></div>
       <div class="step-caption"><strong>{{ step }}</strong><span>{{ steps[step - 1]?.[0] }}</span><small>第 {{ step }} 步，共 4 步</small></div>
     </div>
     <ol class="stepper" aria-label="任务创建进度">

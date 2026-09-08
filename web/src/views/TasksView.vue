@@ -51,7 +51,7 @@ function eta(seconds: number | null | undefined) { if (seconds == null) return '
 
 <template>
   <section>
-    <div class="page-heading"><div><p class="eyebrow">TASK DASHBOARD</p><h1>任务清单</h1><p>FFmpeg 严格单并发，上传可与下一文件转码并行。</p></div><div class="live-chip" :class="{ online: store.connected }"><i></i>{{ store.connected ? '实时同步' : '正在重连' }}</div></div>
+    <div class="page-heading"><div><p class="eyebrow">TASK DASHBOARD</p><h1>任务清单</h1></div><div class="live-chip" :class="{ online: store.connected }"><i></i>{{ store.connected ? '实时同步' : '正在重连' }}</div></div>
     <div v-if="store.system.schedulerHealthy === false" class="form-error" role="alert">任务服务运行异常，请检查服务日志并重启服务。</div>
     <div v-if="store.interruptedCount" class="recovery-banner"><AlertTriangle :size="19" /><div><b>检测到 {{ store.interruptedCount }} 个上次未完成任务</b><span>任务已安全标记为中断，可从文件级检查点 Retry。</span></div></div>
     <div v-if="store.error || actionError" class="form-error"><AlertTriangle :size="16" />{{ actionError || store.error }}</div>
@@ -79,7 +79,7 @@ function eta(seconds: number | null | undefined) { if (seconds == null) return '
 
         <div v-if="task.activeTranscodeFile || task.activeUploadFile || task.uploadQueued" class="pipeline-grid">
           <div v-if="task.activeTranscodeFile" class="pipeline-card transcode"><div class="pipeline-title"><Activity :size="17" /><b>转码槽位</b><span>{{ stageLabel[task.activeTranscodeFile.stage] }}</span></div><strong :title="task.activeTranscodeFile.relativePath">{{ task.activeTranscodeFile.relativePath }}</strong><div v-if="task.activeTranscodeFile.progress" class="mini-progress"><div class="progress-track" :class="{ indeterminate: task.activeTranscodeFile.progress.percent == null }"><i v-if="task.activeTranscodeFile.progress.percent != null" :style="{ width: `${task.activeTranscodeFile.progress.percent}%` }"></i></div><div><span>{{ task.activeTranscodeFile.progress.percent == null ? '进度未知' : `${task.activeTranscodeFile.progress.percent}%` }}</span><span>{{ task.activeTranscodeFile.progress.speed?.toFixed(1) || '--' }}x · {{ task.activeTranscodeFile.progress.fps?.toFixed(0) || '--' }} FPS · {{ eta(task.activeTranscodeFile.progress.etaSeconds) }}</span></div></div><p v-else>正在准备媒体文件…</p></div>
-          <div v-if="task.activeUploadFile || task.uploadQueued" class="pipeline-card upload"><div class="pipeline-title"><UploadCloud :size="17" /><b>上传槽位</b><span>{{ task.activeUploadFile ? stageLabel[task.activeUploadFile.stage] : '等待中' }}</span></div><strong v-if="task.activeUploadFile" :title="task.activeUploadFile.relativePath">{{ task.activeUploadFile.relativePath }}</strong><p>待上传 {{ task.uploadQueued || 0 }} · 传输与 FFmpeg 独立运行</p></div>
+          <div v-if="task.activeUploadFile || task.uploadQueued" class="pipeline-card upload"><div class="pipeline-title"><UploadCloud :size="17" /><b>上传槽位</b><span>{{ task.activeUploadFile ? stageLabel[task.activeUploadFile.stage] : '等待中' }}</span></div><strong v-if="task.activeUploadFile" :title="task.activeUploadFile.relativePath">{{ task.activeUploadFile.relativePath }}</strong><p>待上传 {{ task.uploadQueued || 0 }}</p></div>
         </div>
         <div v-if="task.lastError" class="task-error"><AlertTriangle :size="15" />{{ task.lastError }}</div>
         <footer class="task-actions">
